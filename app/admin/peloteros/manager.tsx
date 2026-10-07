@@ -310,11 +310,7 @@ export default function PlayerManager({
         </button>
       </form>
 
-      <section
-        style={{
-          marginTop: 30,
-        }}
-      >
+      <section style={{ marginTop: 30 }}>
         <h2>Peloteros registrados</h2>
 
         <div
