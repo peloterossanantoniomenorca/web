@@ -40,7 +40,7 @@ export default async function AdminPlayers() {
         </p>
       </div>
 
-      <PlayerManager initialPlayers={players} />
+      <PlayerManager initial={players} />
     </main>
   );
 }
