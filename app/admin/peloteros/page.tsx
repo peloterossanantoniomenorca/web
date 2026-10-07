@@ -9,7 +9,7 @@ export default async function AdminPlayers() {
   const session = await getSession();
 
   if (!session) {
-    redirect('/admin');
+    redirect('/admin/login');
   }
 
   const players = await prisma.player.findMany({
