@@ -1,2 +1,46 @@
-'use client'; import {useState} from 'react';
-export default function PlayerManager({initial}:{initial:any[]}){const [players,setPlayers]=useState(initial),[form,setForm]=useState({firstName:'',lastName:'',jerseyNumber:'',position:''}),[loading,setLoading]=useState(false);async function add(e:any){e.preventDefault();setLoading(true);const r=await fetch('/api/admin/players',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)});const d=await r.json();if(r.ok){setPlayers(x=>[...x,d]);setForm({firstName:'',lastName:'',jerseyNumber:'',position:''})}else alert(d.error||'Error');setLoading(false)}async function toggle(p:any){const r=await fetch(`/api/admin/players/${p.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:p.status==='ACTIVE'?'INACTIVE':'ACTIVE'})});const d=await r.json();if(r.ok)setPlayers(x=>x.map(y=>y.id===p.id?d:y))}return <><form className="card" onSubmit={add} style={{padding:20,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginTop:24}}>{[['firstName','Nombre'],['lastName','Apellido'],['jerseyNumber','Número'],['position','Posición']].map(([k,l])=><input key={k} className="input" required placeholder={l} value={(form as any)[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}<button className="btn btn-primary" disabled={loading}>Crear pelotero</button></form><div style={{display:'grid',gap:10,marginTop:20}}>{players.map(p=><div className="card" style={{padding:16,display:'flex',justifyContent:'space-between',alignItems:'center'}} key={p.id}><span><strong>#{p.jerseyNumber} {p.fullName}</strong><br/><small>{p.position} · {p.status}</small></span><button className="btn btn-light" onClick={()=>toggle(p)}>{p.status==='ACTIVE'?'Desactivar':'Activar'}</button></div>)}</div></>}
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import PlayerManager from './manager';
+
+export const dynamic = 'force-dynamic';
+
+export default async function AdminPlayers() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect('/admin');
+  }
+
+  const players = await prisma.player.findMany({
+    orderBy: {
+      jerseyNumber: 'asc',
+    },
+  });
+
+  return (
+    <main
+      className="container"
+      style={{
+        padding: '48px 0',
+      }}
+    >
+      <div style={{ marginBottom: 30 }}>
+        <span className="badge">
+          ADMINISTRACIÓN
+        </span>
+
+        <h1 style={{ marginTop: 12 }}>
+          Registro de peloteros
+        </h1>
+
+        <p style={{ color: '#64748b' }}>
+          Agrega y administra los jugadores de
+          Peloteros San Antonio FC.
+        </p>
+      </div>
+
+      <PlayerManager initial={players} />
+    </main>
+  );
+}
