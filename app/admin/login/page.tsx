@@ -1,2 +1,147 @@
-'use client'; import { useState } from 'react'; import { useRouter } from 'next/navigation';
-export default function Login(){const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(false);const router=useRouter();async function submit(e:any){e.preventDefault();setLoading(true);setError('');const r=await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})});const d=await r.json();if(!r.ok)setError(d.error||'No se pudo iniciar sesión');else router.push('/admin');setLoading(false)}return <main className="container" style={{maxWidth:460,padding:'80px 0'}}><div className="card" style={{padding:30}}><h1>Acceso administrativo</h1><p style={{color:'#64748b'}}>Ingresa con la cuenta del administrador.</p><form onSubmit={submit} style={{display:'grid',gap:16,marginTop:24}}><label>Email<input className="input" type="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Contraseña<input className="input" type="password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<div style={{color:'#b91c1c'}}>{error}</div>}<button className="btn btn-primary" disabled={loading}>{loading?'Ingresando...':'Iniciar sesión'}</button></form></div></main>}
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LockKeyhole } from 'lucide-react';
+
+export default function AdminLogin() {
+  const router = useRouter();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function login(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/admin/session', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.error ||
+            'Correo o contraseña incorrectos.'
+        );
+        return;
+      }
+
+      router.push('/admin');
+      router.refresh();
+    } catch {
+      setError(
+        'No se pudo conectar con el servidor.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main
+      className="container"
+      style={{
+        minHeight: '70vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '48px 0',
+      }}
+    >
+      <form
+        className="card"
+        onSubmit={login}
+        style={{
+          width: '100%',
+          maxWidth: 430,
+          padding: 30,
+          display: 'grid',
+          gap: 18,
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <LockKeyhole size={42} />
+
+          <h1 style={{ marginTop: 12 }}>
+            Acceso administrador
+          </h1>
+
+          <p style={{ color: '#64748b' }}>
+            Ingresa tus credenciales para continuar.
+          </p>
+        </div>
+
+        <label>
+          Correo electrónico
+
+          <input
+            className="input"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(event) =>
+              setEmail(event.target.value)
+            }
+            placeholder="admin@ejemplo.com"
+          />
+        </label>
+
+        <label>
+          Contraseña
+
+          <input
+            className="input"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) =>
+              setPassword(event.target.value)
+            }
+            placeholder="••••••••"
+          />
+        </label>
+
+        {error && (
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              background: '#fef2f2',
+              color: '#b91c1c',
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <button
+          className="btn btn-primary"
+          type="submit"
+          disabled={loading}
+        >
+          {loading
+            ? 'Ingresando...'
+            : 'Iniciar sesión'}
+        </button>
+      </form>
+    </main>
+  );
+}
