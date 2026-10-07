@@ -1,4 +1,187 @@
-'use client'; import { useState } from 'react'; import { UploadCloud, CheckCircle2 } from 'lucide-react'; 
-export default function Payments(){const [players,setPlayers]=useState<any[]>([]),[playerId,setPlayerId]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[file,setFile]=useState<File|null>(null),[loading,setLoading]=useState(false),[done,setDone]=useState<any>(null); useState(()=>{fetch('/api/players').then(r=>r.json()).then(setPlayers)});
-async function submit(e:any){e.preventDefault(); if(!playerId||!date||!file)return alert('Completa todos los campos y adjunta el voucher.'); if(file.size>5*1024*1024)return alert('El archivo supera el límite de 5 MB.'); setLoading(true); try{const fd=new FormData();fd.append('playerId',playerId);fd.append('paymentDate',date);fd.append('voucher',file);const r=await fetch('/api/payments',{method:'POST',body:fd});const d=await r.json();if(!r.ok)throw new Error(d.error);setDone(d);alert('¡Pago registrado correctamente!')}catch(err:any){alert(err.message||'No pudimos registrar el pago.')}finally{setLoading(false)}}
-return <main className="container" style={{padding:'48px 0',maxWidth:760}}><h1>Registrar pago</h1><p style={{color:'#64748b'}}>Registra tu pago y adjunta el comprobante para mantener actualizada tu cuenta.</p>{done?<div className="card" style={{padding:28,marginTop:24}}><CheckCircle2 size={48}/><h2>¡Pago registrado correctamente!</h2><p>Pelotero: <strong>{done.player}</strong><br/>Fecha: <strong>{new Date(done.paymentDate).toLocaleDateString('es-PE')}</strong><br/>Estado: <strong>Pendiente de aprobación</strong></p><button className="btn btn-dark" onClick={()=>location.reload()}>Registrar otro pago</button></div>:<form className="card" onSubmit={submit} style={{padding:28,marginTop:24,display:'grid',gap:20}}><label>Pelotero<select className="input" value={playerId} onChange={e=>setPlayerId(e.target.value)}><option value="">Selecciona tu nombre</option>{players.map(p=><option value={p.id} key={p.id}>{p.fullName}</option>)}</select></label><label>Fecha del pago<input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Adjunta tu voucher<div style={{border:'2px dashed #cbd5e1',borderRadius:16,padding:28,textAlign:'center',marginTop:8}}><UploadCloud size={32}/><div style={{fontWeight:800,marginTop:8}}>JPG, JPEG, PNG o PDF · máximo 5 MB</div><input style={{marginTop:15}} type="file" accept="image/jpeg,image/png,application/pdf" onChange={e=>setFile(e.target.files?.[0]||null)}/>{file&&<div style={{marginTop:10,color:'#64748b'}}>{file.name} · {(file.size/1024/1024).toFixed(2)} MB</div>}</div></label><button className="btn btn-primary" disabled={loading}>{loading?'Registrando pago...':'Registrar pago'}</button></form>}</main>}
+'use client';
+
+import { useEffect, useState } from 'react';
+import { UploadCloud, CheckCircle2 } from 'lucide-react';
+
+export default function Payments() {
+  const [players, setPlayers] = useState<any[]>([]);
+  const [playerId, setPlayerId] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/players')
+      .then((r) => r.json())
+      .then(setPlayers)
+      .catch(() => {
+        alert('No pudimos cargar la lista de peloteros.');
+      });
+  }, []);
+
+  async function submit(e: any) {
+    e.preventDefault();
+
+    if (!playerId || !date || !file) {
+      return alert('Completa todos los campos y adjunta el voucher.');
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return alert('El archivo supera el límite de 5 MB.');
+    }
+
+    setLoading(true);
+
+    try {
+      const fd = new FormData();
+
+      fd.append('playerId', playerId);
+      fd.append('paymentDate', date);
+      fd.append('voucher', file);
+
+      const r = await fetch('/api/payments', {
+        method: 'POST',
+        body: fd,
+      });
+
+      const d = await r.json();
+
+      if (!r.ok) {
+        throw new Error(d.error);
+      }
+
+      setDone(d);
+      alert('¡Pago registrado correctamente!');
+    } catch (err: any) {
+      alert(err.message || 'No pudimos registrar el pago.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main
+      className="container"
+      style={{ padding: '48px 0', maxWidth: 760 }}
+    >
+      <h1>Registrar pago</h1>
+
+      <p style={{ color: '#64748b' }}>
+        Registra tu pago y adjunta el comprobante para mantener actualizada tu
+        cuenta.
+      </p>
+
+      {done ? (
+        <div className="card" style={{ padding: 28, marginTop: 24 }}>
+          <CheckCircle2 size={48} />
+
+          <h2>¡Pago registrado correctamente!</h2>
+
+          <p>
+            Pelotero: <strong>{done.player}</strong>
+            <br />
+            Fecha:{' '}
+            <strong>
+              {new Date(done.paymentDate).toLocaleDateString('es-PE')}
+            </strong>
+            <br />
+            Estado: <strong>Pendiente de aprobación</strong>
+          </p>
+
+          <button
+            className="btn btn-dark"
+            onClick={() => location.reload()}
+          >
+            Registrar otro pago
+          </button>
+        </div>
+      ) : (
+        <form
+          className="card"
+          onSubmit={submit}
+          style={{
+            padding: 28,
+            marginTop: 24,
+            display: 'grid',
+            gap: 20,
+          }}
+        >
+          <label>
+            Pelotero
+
+            <select
+              className="input"
+              value={playerId}
+              onChange={(e) => setPlayerId(e.target.value)}
+            >
+              <option value="">Selecciona tu nombre</option>
+
+              {players.map((p) => (
+                <option value={p.id} key={p.id}>
+                  {p.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Fecha del pago
+
+            <input
+              className="input"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+
+          <label>
+            Adjunta tu voucher
+
+            <div
+              style={{
+                border: '2px dashed #cbd5e1',
+                borderRadius: 16,
+                padding: 28,
+                textAlign: 'center',
+                marginTop: 8,
+              }}
+            >
+              <UploadCloud size={32} />
+
+              <div style={{ fontWeight: 800, marginTop: 8 }}>
+                JPG, JPEG, PNG o PDF · máximo 5 MB
+              </div>
+
+              <input
+                style={{ marginTop: 15 }}
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                onChange={(e) =>
+                  setFile(e.target.files?.[0] || null)
+                }
+              />
+
+              {file && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: '#64748b',
+                  }}
+                >
+                  {file.name} ·{' '}
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+              )}
+            </div>
+          </label>
+
+          <button className="btn btn-primary" disabled={loading}>
+            {loading ? 'Registrando pago...' : 'Registrar pago'}
+          </button>
+        </form>
+      )}
+    </main>
+  );
+}
