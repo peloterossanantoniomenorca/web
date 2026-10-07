@@ -1,0 +1,2 @@
+import { redirect } from 'next/navigation'; import { getSession } from '@/lib/auth'; import { prisma } from '@/lib/prisma'; import PlayerManager from './manager';
+export default async function AdminPlayers(){if(!(await getSession()))redirect('/admin/login');const players=await prisma.player.findMany({orderBy:{jerseyNumber:'asc'}});return <main className="container" style={{padding:'48px 0'}}><h1>Gestionar peloteros</h1><p style={{color:'#64748b'}}>Crea, edita y activa o desactiva jugadores.</p><PlayerManager initial={players}/></main>}

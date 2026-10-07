@@ -1,0 +1,7 @@
+:root{--navy:#071426;--red:#e3262e;--ink:#0f172a}
+*{box-sizing:border-box} body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Arial,Helvetica,sans-serif} a{text-decoration:none;color:inherit}
+.container{width:min(1180px,calc(100% - 32px));margin:auto}.hero{background:radial-gradient(circle at 80% 20%,#1f3c63 0,#071426 55%,#030914 100%);color:#fff}.card{background:#fff;border:1px solid #e5e7eb;border-radius:20px;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:11px 16px;font-weight:700;transition:.2s}.btn:hover{transform:translateY(-1px)}.btn-primary{background:var(--red);color:#fff}.btn-dark{background:var(--navy);color:#fff}.btn-light{background:#fff;border:1px solid #dbe1ea}.input{width:100%;border:1px solid #d6dce5;border-radius:12px;padding:12px 13px;background:#fff;outline:none}.input:focus{border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.12)}
+.badge{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}.badge-pending{background:#fff7ed;color:#c2410c}.badge-approved{background:#ecfdf5;color:#047857}.badge-rejected{background:#fef2f2;color:#b91c1c}
+
+@media(max-width:720px){.container{width:min(100% - 22px,1180px)}nav{gap:10px!important;font-size:12px!important}.hero .container{grid-template-columns:1fr!important}.hero{min-height:auto}.card{border-radius:16px}.input{font-size:16px}table{font-size:13px}}

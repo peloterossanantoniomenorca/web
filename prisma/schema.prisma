@@ -1,0 +1,42 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") directUrl = env("DIRECT_URL") }
+
+enum PlayerStatus { ACTIVE INACTIVE }
+enum PaymentStatus { PENDING APPROVED REJECTED }
+model Player {
+ id String @id @default(cuid())
+ firstName String
+ lastName String
+ fullName String
+ jerseyNumber Int
+ position String
+ photoUrl String?
+ status PlayerStatus @default(ACTIVE)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ payments Payment[]
+ @@index([status])
+ @@index([fullName])
+}
+model Payment {
+ id String @id @default(cuid())
+ playerId String
+ paymentDate DateTime
+ voucherUrl String
+ voucherFileName String
+ voucherFileType String
+ amount Decimal? @db.Decimal(10,2)
+ status PaymentStatus @default(PENDING)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ player Player @relation(fields:[playerId], references:[id], onDelete: Restrict)
+ @@index([playerId, paymentDate])
+ @@index([status])
+}
+model Admin {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}

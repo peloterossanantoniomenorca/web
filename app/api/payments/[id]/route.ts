@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server'; import {getSession} from '@/lib/auth'; import {prisma} from '@/lib/prisma';
+export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){if(!(await getSession()))return NextResponse.json({error:'No autorizado'},{status:401});const {id}=await params;const {status}=await req.json();if(!['PENDING','APPROVED','REJECTED'].includes(status))return NextResponse.json({error:'Estado inválido'},{status:400});return NextResponse.json(await prisma.payment.update({where:{id},data:{status}}))}
