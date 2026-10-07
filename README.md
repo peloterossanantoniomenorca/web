@@ -61,3 +61,6 @@ Para Vercel: conecta el repositorio, configura las variables de entorno y despli
 
 ## Notas de seguridad
 Los vouchers no se guardan en PostgreSQL; sólo se guarda metadata y URL firmada. Los archivos tienen límite de 5 MB y MIME permitido. Las rutas administrativas validan sesión también en servidor. No subas `.env`, vouchers reales ni credenciales al repositorio.
+
+
+Deployment update
