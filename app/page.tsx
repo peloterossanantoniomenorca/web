@@ -38,7 +38,14 @@ export default async function Home() {
 
   return (
     <main>
-      <section className="hero">
+      {/* HERO */}
+      <section
+        className="hero"
+        style={{
+          background:
+            'linear-gradient(135deg, #03281f 0%, #064e3b 48%, #087f5b 100%)',
+        }}
+      >
         <div
           className="container"
           style={{
@@ -49,12 +56,14 @@ export default async function Home() {
             alignItems: 'center',
           }}
         >
+          {/* TEXTO */}
           <div>
             <span
               className="badge"
               style={{
                 background: '#ffffff18',
-                color: '#fff',
+                color: '#d1fae5',
+                border: '1px solid #ffffff25',
               }}
             >
               COMUNIDAD • DISCIPLINA • FÚTBOL
@@ -65,11 +74,17 @@ export default async function Home() {
                 fontSize: 'clamp(40px,6vw,68px)',
                 lineHeight: 1,
                 margin: '18px 0',
+                color: '#ffffff',
               }}
             >
               Peloteros
               <br />
-              <span style={{ color: '#ef4444' }}>
+
+              <span
+                style={{
+                  color: '#bef264',
+                }}
+              >
                 San Antonio FC
               </span>
             </h1>
@@ -77,7 +92,7 @@ export default async function Home() {
             <p
               style={{
                 fontSize: 19,
-                color: '#cbd5e1',
+                color: '#d1fae5',
                 maxWidth: 620,
               }}
             >
@@ -86,6 +101,7 @@ export default async function Home() {
               cualquier dispositivo.
             </p>
 
+            {/* BOTONES */}
             <div
               style={{
                 display: 'flex',
@@ -95,37 +111,170 @@ export default async function Home() {
               }}
             >
               <Link
-                className="btn btn-primary"
                 href="/peloteros"
+                className="btn"
+                style={{
+                  background: '#a3e635',
+                  color: '#163300',
+                  border: '1px solid #bef264',
+                  fontWeight: 800,
+                  boxShadow:
+                    '0 10px 25px rgba(0,0,0,0.18)',
+                }}
               >
                 Ver Peloteros
                 <ArrowRight size={17} />
               </Link>
 
               <Link
-                className="btn btn-light"
                 href="/pagos"
+                className="btn"
+                style={{
+                  background: '#e9f7f2',
+                  color: '#075e46',
+                  border: '1px solid #c7eadc',
+                  fontWeight: 800,
+                }}
               >
                 Registrar Pago
               </Link>
             </div>
           </div>
 
+          {/* ILUSTRACIÓN DE FÚTBOL */}
           <div
             className="card"
             style={{
               padding: 28,
               background:
-                'linear-gradient(145deg,#ffffff,#e9eef5)',
+                'linear-gradient(145deg, #f0fdf4 0%, #d1fae5 100%)',
+              border: '1px solid #bbf7d0',
+              overflow: 'hidden',
             }}
           >
             <div
               style={{
-                fontSize: 90,
-                textAlign: 'center',
+                position: 'relative',
+                height: 250,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              ⚽
+              {/* Círculo decorativo */}
+              <div
+                style={{
+                  position: 'absolute',
+                  width: 220,
+                  height: 220,
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(circle, #86efac 0%, #bbf7d055 55%, transparent 70%)',
+                }}
+              />
+
+              {/* Ilustración SVG */}
+              <svg
+                width="230"
+                height="210"
+                viewBox="0 0 230 210"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  filter:
+                    'drop-shadow(0 18px 18px rgba(6,78,59,0.20))',
+                }}
+              >
+                {/* Césped / campo */}
+                <path
+                  d="M25 175C55 151 175 151 205 175"
+                  stroke="#16A34A"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                />
+
+                <path
+                  d="M45 177C75 161 155 161 185 177"
+                  stroke="#86EFAC"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+
+                {/* Balón */}
+                <circle
+                  cx="115"
+                  cy="95"
+                  r="62"
+                  fill="#ffffff"
+                  stroke="#166534"
+                  strokeWidth="5"
+                />
+
+                {/* Paneles del balón */}
+                <path
+                  d="M115 43L132 55L126 75L104 75L98 55L115 43Z"
+                  fill="#166534"
+                />
+
+                <path
+                  d="M98 55L79 66L84 88L104 75"
+                  stroke="#166534"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                />
+
+                <path
+                  d="M132 55L151 66L146 88L126 75"
+                  stroke="#166534"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                />
+
+                <path
+                  d="M84 88L67 104L78 124L101 118L104 94"
+                  stroke="#166534"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                />
+
+                <path
+                  d="M146 88L163 104L152 124L129 118L126 94"
+                  stroke="#166534"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                />
+
+                <path
+                  d="M101 118L115 143L129 118"
+                  stroke="#166534"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                />
+
+                {/* Detalles verdes */}
+                <circle
+                  cx="115"
+                  cy="95"
+                  r="69"
+                  stroke="#22C55E"
+                  strokeWidth="2"
+                  strokeDasharray="5 8"
+                  opacity="0.45"
+                />
+
+                {/* Estrellas decorativas */}
+                <path
+                  d="M39 55L42 62L49 65L42 68L39 75L36 68L29 65L36 62L39 55Z"
+                  fill="#84CC16"
+                />
+
+                <path
+                  d="M188 76L191 83L198 86L191 89L188 96L185 89L178 86L185 83L188 76Z"
+                  fill="#84CC16"
+                />
+              </svg>
             </div>
 
             <div
@@ -133,6 +282,7 @@ export default async function Home() {
                 textAlign: 'center',
                 fontWeight: 900,
                 fontSize: 22,
+                color: '#064e3b',
               }}
             >
               Pasión que nos une
@@ -141,7 +291,8 @@ export default async function Home() {
             <p
               style={{
                 textAlign: 'center',
-                color: '#64748b',
+                color: '#3f6f5f',
+                marginBottom: 0,
               }}
             >
               Todo lo que necesitas para mantener tu pago al día.
@@ -150,6 +301,7 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ESTADÍSTICAS */}
       <section
         className="container"
         style={{
@@ -175,13 +327,19 @@ export default async function Home() {
               }}
               key={label}
             >
-              <Icon size={25} />
+              <Icon
+                size={25}
+                style={{
+                  color: '#087f5b',
+                }}
+              />
 
               <div
                 style={{
                   fontSize: 34,
                   fontWeight: 900,
                   marginTop: 12,
+                  color: '#064e3b',
                 }}
               >
                 {number}
@@ -198,6 +356,7 @@ export default async function Home() {
           ))}
         </div>
 
+        {/* CÓMO FUNCIONA */}
         <div
           style={{
             marginTop: 55,
@@ -230,7 +389,7 @@ export default async function Home() {
                   style={{
                     fontSize: 13,
                     fontWeight: 900,
-                    color: '#e3262e',
+                    color: '#087f5b',
                   }}
                 >
                   0{index + 1}
@@ -242,6 +401,7 @@ export default async function Home() {
           </div>
         </div>
 
+        {/* ÚLTIMOS PAGOS */}
         <div
           style={{
             marginTop: 55,
