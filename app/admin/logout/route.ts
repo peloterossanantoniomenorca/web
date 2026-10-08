@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   await clearSession();
 
   return NextResponse.redirect(
-    new URL('/admin/login', request.url)
+    new URL('/admin/login', request.url),
+    303
   );
 }
