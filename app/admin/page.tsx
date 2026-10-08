@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   const session = await getSession();
 
@@ -29,23 +31,27 @@ export default async function AdminPage() {
       >
         <div>
           <h1>Panel administrador</h1>
+
           <p style={{ color: '#64748b' }}>
             Gestiona los peloteros y la información del club.
           </p>
         </div>
 
-        <Link
-          href="/admin/logout"
-          className="btn btn-dark"
-        >
-          Cerrar sesión
-        </Link>
+        <form action="/admin/logout" method="POST">
+          <button
+            type="submit"
+            className="btn btn-dark"
+          >
+            Cerrar sesión
+          </button>
+        </form>
       </div>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(260px, 1fr))',
           gap: 20,
         }}
       >
