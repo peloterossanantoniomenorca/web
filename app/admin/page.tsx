@@ -31,7 +31,6 @@ export default async function AdminPage() {
       >
         <div>
           <h1>Panel administrador</h1>
-
           <p style={{ color: '#64748b' }}>
             Gestiona los peloteros y la información del club.
           </p>
@@ -72,12 +71,7 @@ export default async function AdminPage() {
             activar o desactivar jugadores.
           </p>
 
-          <div
-            style={{
-              marginTop: 20,
-              fontWeight: 800,
-            }}
-          >
+          <div style={{ marginTop: 20, fontWeight: 800 }}>
             Administrar peloteros →
           </div>
         </Link>
@@ -98,12 +92,7 @@ export default async function AdminPage() {
             Consulta los pagos y genera reportes del club.
           </p>
 
-          <div
-            style={{
-              marginTop: 20,
-              fontWeight: 800,
-            }}
-          >
+          <div style={{ marginTop: 20, fontWeight: 800 }}>
             Ver reportes →
           </div>
         </Link>
