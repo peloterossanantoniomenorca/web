@@ -4,13 +4,22 @@ import {
   Users,
   CreditCard,
   Clock3,
+  CheckCircle,
+  XCircle,
   ArrowRight,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const [players, payments, pending, latest] = await Promise.all([
+  const [
+    players,
+    payments,
+    approved,
+    rejected,
+    pending,
+    latest,
+  ] = await Promise.all([
     prisma.player.count({
       where: {
         status: 'ACTIVE',
@@ -18,6 +27,18 @@ export default async function Home() {
     }),
 
     prisma.payment.count(),
+
+    prisma.payment.count({
+      where: {
+        status: 'APPROVED',
+      },
+    }),
+
+    prisma.payment.count({
+      where: {
+        status: 'REJECTED',
+      },
+    }),
 
     prisma.payment.count({
       where: {
@@ -311,49 +332,180 @@ export default async function Home() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3,1fr)',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(190px, 1fr))',
             gap: 16,
           }}
         >
-          {[
-            [Users, players, 'Peloteros activos'],
-            [CreditCard, payments, 'Pagos registrados'],
-            [Clock3, pending, 'Pagos pendientes'],
-          ].map(([Icon, number, label]: any) => (
-            <div
-              className="card"
+          {/* PELOTEROS */}
+          <div
+            className="card"
+            style={{
+              padding: 24,
+            }}
+          >
+            <Users
+              size={25}
               style={{
-                padding: 24,
+                color: '#087f5b',
               }}
-              key={label}
+            />
+
+            <div
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginTop: 12,
+                color: '#064e3b',
+              }}
             >
-              <Icon
-                size={25}
-                style={{
-                  color: '#087f5b',
-                }}
-              />
-
-              <div
-                style={{
-                  fontSize: 34,
-                  fontWeight: 900,
-                  marginTop: 12,
-                  color: '#064e3b',
-                }}
-              >
-                {number}
-              </div>
-
-              <div
-                style={{
-                  color: '#64748b',
-                }}
-              >
-                {label}
-              </div>
+              {players}
             </div>
-          ))}
+
+            <div
+              style={{
+                color: '#64748b',
+              }}
+            >
+              Peloteros activos
+            </div>
+          </div>
+
+          {/* PAGOS REGISTRADOS */}
+          <div
+            className="card"
+            style={{
+              padding: 24,
+            }}
+          >
+            <CreditCard
+              size={25}
+              style={{
+                color: '#087f5b',
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginTop: 12,
+                color: '#064e3b',
+              }}
+            >
+              {payments}
+            </div>
+
+            <div
+              style={{
+                color: '#64748b',
+              }}
+            >
+              Pagos registrados
+            </div>
+          </div>
+
+          {/* PAGOS APROBADOS */}
+          <div
+            className="card"
+            style={{
+              padding: 24,
+            }}
+          >
+            <CheckCircle
+              size={25}
+              style={{
+                color: '#16a34a',
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginTop: 12,
+                color: '#064e3b',
+              }}
+            >
+              {approved}
+            </div>
+
+            <div
+              style={{
+                color: '#64748b',
+              }}
+            >
+              Pagos aprobados
+            </div>
+          </div>
+
+          {/* PAGOS RECHAZADOS */}
+          <div
+            className="card"
+            style={{
+              padding: 24,
+            }}
+          >
+            <XCircle
+              size={25}
+              style={{
+                color: '#dc2626',
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginTop: 12,
+                color: '#064e3b',
+              }}
+            >
+              {rejected}
+            </div>
+
+            <div
+              style={{
+                color: '#64748b',
+              }}
+            >
+              Pagos rechazados
+            </div>
+          </div>
+
+          {/* PAGOS PENDIENTES */}
+          <div
+            className="card"
+            style={{
+              padding: 24,
+            }}
+          >
+            <Clock3
+              size={25}
+              style={{
+                color: '#d97706',
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginTop: 12,
+                color: '#064e3b',
+              }}
+            >
+              {pending}
+            </div>
+
+            <div
+              style={{
+                color: '#64748b',
+              }}
+            >
+              Pagos pendientes
+            </div>
+          </div>
         </div>
 
         {/* CÓMO FUNCIONA */}
