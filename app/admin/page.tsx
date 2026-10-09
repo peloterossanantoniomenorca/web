@@ -32,15 +32,12 @@ export default async function AdminPage() {
         <div>
           <h1>Panel administrador</h1>
           <p style={{ color: '#64748b' }}>
-            Gestiona los peloteros y la información del club.
+            Gestiona los peloteros, los ingresos y los egresos del club.
           </p>
         </div>
 
         <form action="/admin/logout" method="POST">
-          <button
-            type="submit"
-            className="btn btn-dark"
-          >
+          <button type="submit" className="btn btn-dark">
             Cerrar sesión
           </button>
         </form>
@@ -49,8 +46,7 @@ export default async function AdminPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: 20,
         }}
       >
@@ -94,6 +90,28 @@ export default async function AdminPage() {
 
           <div style={{ marginTop: 20, fontWeight: 800 }}>
             Ver reportes →
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/egresos"
+          className="card"
+          style={{
+            padding: 28,
+            textDecoration: 'none',
+            color: 'inherit',
+            display: 'block',
+          }}
+        >
+          <h2>Registro de egresos</h2>
+
+          <p style={{ color: '#64748b' }}>
+            Registrar gastos del club, seleccionar al pelotero
+            responsable y adjuntar los comprobantes correspondientes.
+          </p>
+
+          <div style={{ marginTop: 20, fontWeight: 800 }}>
+            Registrar egresos →
           </div>
         </Link>
       </div>
