@@ -10,8 +10,6 @@ function getDriveClient() {
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  // Identificar las variables que no están disponibles
-  // sin exponer credenciales en los registros.
   const missing: string[] = [];
 
   if (!clientId) missing.push('GOOGLE_CLIENT_ID');
@@ -41,7 +39,20 @@ function getDriveClient() {
   });
 }
 
-export async function uploadVoucher(file: File) {
+function sanitizeFileName(value: string) {
+  return value
+    .normalize('NFC')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '')
+    .slice(0, 180);
+}
+
+export async function uploadVoucher(
+  file: File,
+  desiredName: string
+) {
   if (!file || file.size === 0) {
     throw new Error('El archivo del voucher está vacío.');
   }
@@ -62,10 +73,23 @@ export async function uploadVoucher(file: File) {
 
   const drive = getDriveClient();
 
-  const extension =
-    file.name.split('.').pop()?.toLowerCase() || 'bin';
+  const extensionByMimeType: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'application/pdf': '.pdf',
+  };
 
-  const safeName = `voucher-${randomUUID()}.${extension}`;
+  const extension = extensionByMimeType[file.type];
+
+  const baseName = sanitizeFileName(desiredName);
+
+  if (!baseName) {
+    throw new Error('No se pudo generar el nombre del voucher.');
+  }
+
+  // El nombre incluye el tipo de pago, el pelotero y la fecha.
+  const safeName = `${baseName}${extension}`;
+
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const uploaded = await drive.files.create({
@@ -88,8 +112,7 @@ export async function uploadVoucher(file: File) {
     );
   }
 
-  // Hace visible únicamente este archivo para cualquier persona
-  // que tenga el enlace. No publica toda la carpeta de Drive.
+  // Hace público únicamente este archivo mediante su enlace.
   await drive.permissions.create({
     fileId,
     requestBody: {
@@ -105,5 +128,6 @@ export async function uploadVoucher(file: File) {
   return {
     url,
     key: fileId,
+    fileName: safeName,
   };
 }
