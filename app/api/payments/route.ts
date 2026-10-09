@@ -28,6 +28,14 @@ function parseDate(value: string) {
   return date;
 }
 
+function formatDateForFile(date: Date) {
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
@@ -133,10 +141,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // El voucher se guarda en Supabase Storage.
-    const stored = await uploadVoucher(file);
+    // Nombre: TIPO DE PAGO - PELOTERO - FECHA.extensión
+    const desiredName = [
+      paymentType.description,
+      player.fullName,
+      formatDateForFile(paymentDate),
+    ].join(' - ');
 
-    // El monto se toma de PaymentType, nunca del formulario del navegador.
+    // El voucher se guarda en Google Drive.
+    const stored = await uploadVoucher(file, desiredName);
+
+    // El monto se toma de PaymentType, nunca del formulario.
     const payment = await prisma.payment.create({
       data: {
         playerId,
@@ -145,7 +160,7 @@ export async function POST(req: Request) {
         pichangaDate,
         amount: paymentType.amount,
         voucherUrl: stored.url,
-        voucherFileName: file.name,
+        voucherFileName: stored.fileName,
         voucherFileType: file.type,
         status: 'PENDING',
       },
@@ -156,9 +171,11 @@ export async function POST(req: Request) {
         id: payment.id,
         player: player.fullName,
         paymentType: paymentType.description,
-        amount: payment.amount?.toString() ?? paymentType.amount.toString(),
+        amount:
+          payment.amount?.toString() ?? paymentType.amount.toString(),
         paymentDate: payment.paymentDate.toISOString(),
         pichangaDate: payment.pichangaDate?.toISOString() ?? null,
+        voucherFileName: stored.fileName,
         status: payment.status,
         message: 'Pago registrado correctamente.',
       },
