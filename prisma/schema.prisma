@@ -103,3 +103,27 @@ model Egreso {
   @@index([fecha])
   @@map("Egreso")
 }
+
+
+model Asistencia {
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  playerId       String
+  fechaPichanga  DateTime @db.Date
+  asistio        Boolean  @default(true)
+  estadoPago     String   @default("POR_PAGAR")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  player Player @relation(
+    fields: [playerId],
+    references: [id],
+    onUpdate: Cascade,
+    onDelete: Restrict
+  )
+
+  @@unique([playerId, fechaPichanga])
+  @@index([fechaPichanga])
+  @@index([estadoPago])
+  @@map("Asistencia")
+}
+
