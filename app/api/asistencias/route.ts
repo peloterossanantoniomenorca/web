@@ -5,6 +5,8 @@ import { getSession } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const TIPO_CUOTA_PARTIDO = 'Pago cuota por partido';
+
 function isValidDate(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -15,6 +17,46 @@ function isValidDate(value: unknown): value is string {
     !Number.isNaN(date.getTime()) &&
     date.toISOString().slice(0, 10) === value
   );
+}
+
+function getDateRange(fecha: string) {
+  const start = new Date(`${fecha}T00:00:00.000Z`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  return { start, end };
+}
+
+async function getApprovedMatchFeePlayerIds(
+  fecha: string,
+  playerIds: string[]
+) {
+  if (playerIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const { start, end } = getDateRange(fecha);
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      playerId: { in: playerIds },
+      status: 'APPROVED',
+      paymentType: {
+        is: {
+          description: TIPO_CUOTA_PARTIDO,
+        },
+      },
+      pichangaDate: {
+        gte: start,
+        lt: end,
+      },
+    },
+    select: {
+      playerId: true,
+    },
+    distinct: ['playerId'],
+  });
+
+  return new Set(payments.map((payment) => payment.playerId));
 }
 
 export async function GET(request: Request) {
@@ -62,10 +104,37 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    const playerIds = players.map((player) => player.id);
+
+    const paidPlayerIds = await getApprovedMatchFeePlayerIds(
+      fecha,
+      playerIds
+    );
+
+    const attendanceByPlayer = new Map(
+      asistencias.map((attendance) => [
+        attendance.playerId,
+        attendance,
+      ])
+    );
+
+    const result = players.map((player) => {
+      const attendance = attendanceByPlayer.get(player.id);
+      const pagado = paidPlayerIds.has(player.id);
+
+      return {
+        id: attendance?.id ?? null,
+        playerId: player.id,
+        fechaPichanga,
+        asistio: attendance?.asistio ?? false,
+        estadoPago: pagado ? 'PAGADO' : 'POR_PAGAR',
+      };
+    });
+
     return NextResponse.json({
       fecha,
       players,
-      asistencias,
+      asistencias: result,
     });
   } catch (error) {
     console.error('ERROR CONSULTANDO ASISTENCIAS:', error);
@@ -151,6 +220,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const paidPlayerIds = await getApprovedMatchFeePlayerIds(
+      fecha,
+      playerIds
+    );
+
     await prisma.$transaction(
       asistencias.map(
         (item: { playerId: string; asistio: boolean }) =>
@@ -165,10 +239,15 @@ export async function POST(request: Request) {
               playerId: item.playerId,
               fechaPichanga,
               asistio: item.asistio,
-              estadoPago: 'POR_PAGAR',
+              estadoPago: paidPlayerIds.has(item.playerId)
+                ? 'PAGADO'
+                : 'POR_PAGAR',
             },
             update: {
               asistio: item.asistio,
+              estadoPago: paidPlayerIds.has(item.playerId)
+                ? 'PAGADO'
+                : 'POR_PAGAR',
               updatedAt: new Date(),
             },
           })
