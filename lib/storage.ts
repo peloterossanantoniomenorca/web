@@ -1,6 +1,5 @@
 import { google } from 'googleapis';
 import { Readable } from 'node:stream';
-import { randomUUID } from 'node:crypto';
 
 export const runtime = 'nodejs';
 
@@ -87,8 +86,17 @@ export async function uploadVoucher(
     throw new Error('No se pudo generar el nombre del voucher.');
   }
 
-  // El nombre incluye el tipo de pago, el pelotero y la fecha.
-  const safeName = `${baseName}${extension}`;
+  // Garantiza el prefijo EGRESOS- para los vouchers de egresos.
+  // Los vouchers de pagos conservan su nombre original.
+  let nombreFinal = baseName;
+
+  if (/^EGRESOS-/i.test(baseName)) {
+    nombreFinal = `EGRESOS-${baseName.slice('EGRESOS-'.length)}`;
+  } else if (/^EGRESO-/i.test(baseName)) {
+    nombreFinal = `EGRESOS-${baseName.slice('EGRESO-'.length)}`;
+  }
+
+  const safeName = `${nombreFinal}${extension}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
