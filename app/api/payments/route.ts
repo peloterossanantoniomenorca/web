@@ -72,7 +72,10 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024) {
+    if (
+      !allowedTypes.includes(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
       return NextResponse.json(
         {
           error: 'Archivo no permitido. Usa JPG, PNG o PDF de hasta 5 MB.',
@@ -141,17 +144,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Nombre: TIPO DE PAGO - PELOTERO - FECHA.extensión
+    // Formato: TIPO DE PAGO - NOMBRE DEL PELOTERO - FECHA.extensión
     const desiredName = [
       paymentType.description,
       player.fullName,
       formatDateForFile(paymentDate),
     ].join(' - ');
 
-    // El voucher se guarda en Google Drive.
+    // Guardar el voucher en Google Drive con el nombre personalizado.
     const stored = await uploadVoucher(file, desiredName);
 
-    // El monto se toma de PaymentType, nunca del formulario.
+    // Registrar el pago en Supabase mediante Prisma.
     const payment = await prisma.payment.create({
       data: {
         playerId,
