@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+
 import { getSession } from '@/lib/auth';
+
+const TIPO_CUOTA_PARTIDO = 'Pago cuota por partido';
 
 export async function PATCH(
   req: Request,
@@ -38,64 +41,68 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { id },
+        include: { paymentType: true },
       });
 
       if (!payment) {
         throw new Error('PAYMENT_NOT_FOUND');
       }
 
-      // Actualizar únicamente el estado.
-      // El voucher y los demás datos se conservan.
       const updatedPayment = await tx.payment.update({
         where: { id },
         data: { status },
       });
 
-      // Solo sincronizar asistencias cuando el pago
-      // tenga jugador y fecha de pichanga.
-      if (payment.pichangaDate) {
-        const paymentDate = payment.pichangaDate
+      // Donaciones y otros conceptos no modifican asistencias.
+      const isMatchFee =
+        payment.paymentType?.description ===
+        TIPO_CUOTA_PARTIDO;
+
+      if (isMatchFee && payment.pichangaDate) {
+        const dateString = payment.pichangaDate
           .toISOString()
           .slice(0, 10);
 
-        const attendanceDate = new Date(
-          `${paymentDate}T00:00:00.000Z`
+        const startDate = new Date(
+          `${dateString}T00:00:00.000Z`
+        );
+
+        const endDate = new Date(
+          startDate.getTime() + 24 * 60 * 60 * 1000
         );
 
         if (status === 'APPROVED') {
           await tx.asistencia.updateMany({
             where: {
               playerId: payment.playerId,
-              fechaPichanga: attendanceDate,
+              fechaPichanga: startDate,
             },
             data: {
               estadoPago: 'PAGADO',
             },
           });
         } else {
-          // Comprobar si existe otro pago aprobado
-          // del mismo jugador y de la misma pichanga.
-          const otherApprovedPayment =
+          const anotherApprovedFee =
             await tx.payment.findFirst({
               where: {
                 id: { not: payment.id },
                 playerId: payment.playerId,
+                paymentType: {
+                  description: TIPO_CUOTA_PARTIDO,
+                },
                 pichangaDate: {
-                  gte: attendanceDate,
-                  lt: new Date(
-                    attendanceDate.getTime() +
-                      24 * 60 * 60 * 1000
-                  ),
+                  gte: startDate,
+                  lt: endDate,
                 },
                 status: 'APPROVED',
               },
             });
 
-          if (!otherApprovedPayment) {
+          if (!anotherApprovedFee) {
             await tx.asistencia.updateMany({
               where: {
                 playerId: payment.playerId,
-                fechaPichanga: attendanceDate,
+                fechaPichanga: startDate,
               },
               data: {
                 estadoPago: 'POR_PAGAR',
@@ -112,8 +119,8 @@ export async function PATCH(
       success: true,
       message:
         status === 'APPROVED'
-          ? 'Pago aprobado correctamente. El voucher se conserva y se actualiza la asistencia correspondiente.'
-          : 'Pago rechazado correctamente. El voucher se conserva y se verifica el estado de la asistencia.',
+          ? 'Pago aprobado. Se conserva el voucher y solo se actualiza la asistencia si corresponde a una cuota por partido.'
+          : 'Pago rechazado. Se conserva el voucher y se verifica la cuota por partido.',
       payment: result,
     });
   } catch (error) {
