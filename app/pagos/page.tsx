@@ -2,11 +2,13 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import {
+  Banknote,
   CalendarDays,
   CheckCircle2,
   CloudUpload,
   CreditCard,
   LoaderCircle,
+  Smartphone,
   XCircle,
 } from 'lucide-react';
 
