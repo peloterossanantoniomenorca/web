@@ -23,6 +23,8 @@ type PaymentType = {
   amount: string;
 };
 
+type PaymentMethod = 'YAPE' | 'EFECTIVO';
+
 type Receipt = {
   player: string;
   paymentType: string;
@@ -30,6 +32,7 @@ type Receipt = {
   paymentDate: string;
   pichangaDate: string;
   status: string;
+  paymentMethod: PaymentMethod;
 };
 
 function today() {
@@ -61,6 +64,9 @@ export default function PagosPage() {
 
   const [playerId, setPlayerId] = useState('');
   const [paymentTypeId, setPaymentTypeId] = useState('');
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>('YAPE');
+
   const [paymentDate, setPaymentDate] = useState(today());
   const [pichangaDate, setPichangaDate] = useState('');
   const [voucher, setVoucher] = useState<File | null>(null);
@@ -139,6 +145,28 @@ export default function PagosPage() {
     return () => URL.revokeObjectURL(url);
   }, [voucher]);
 
+  function clearVoucherInput() {
+    const input = document.getElementById(
+      'voucher'
+    ) as HTMLInputElement | null;
+
+    if (input) input.value = '';
+  }
+
+  function handlePaymentMethodChange(method: PaymentMethod) {
+    setPaymentMethod(method);
+    setError('');
+    setSuccess('');
+    setReceipt(null);
+
+    // Al elegir efectivo, quitar cualquier archivo seleccionado.
+    if (method === 'EFECTIVO') {
+      setVoucher(null);
+      setPreview('');
+      clearVoucherInput();
+    }
+  }
+
   function handleVoucher(file: File | null) {
     setError('');
     setSuccess('');
@@ -156,12 +184,14 @@ export default function PagosPage() {
 
     if (!allowedTypes.includes(file.type)) {
       setVoucher(null);
+      clearVoucherInput();
       setError('El voucher debe ser JPG, PNG o PDF.');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       setVoucher(null);
+      clearVoucherInput();
       setError('El archivo no puede superar los 5 MB.');
       return;
     }
@@ -198,8 +228,8 @@ export default function PagosPage() {
       return;
     }
 
-    if (!voucher) {
-      setError('Adjunta el comprobante de pago.');
+    if (paymentMethod === 'YAPE' && !voucher) {
+      setError('Adjunta el voucher del pago por Yape.');
       return;
     }
 
@@ -212,7 +242,11 @@ export default function PagosPage() {
       formData.append('paymentTypeId', paymentTypeId);
       formData.append('paymentDate', paymentDate);
       formData.append('pichangaDate', pichangaDate);
-      formData.append('voucher', voucher);
+      formData.append('paymentMethod', paymentMethod);
+
+      if (paymentMethod === 'YAPE' && voucher) {
+        formData.append('voucher', voucher);
+      }
 
       const response = await fetch('/api/payments', {
         method: 'POST',
@@ -226,6 +260,7 @@ export default function PagosPage() {
       }
 
       setSuccess('¡Pago registrado correctamente!');
+
       setReceipt({
         player: selectedPlayer?.fullName || '',
         paymentType: selectedType.description,
@@ -233,21 +268,17 @@ export default function PagosPage() {
         paymentDate,
         pichangaDate,
         status: 'Pendiente de aprobación',
+        paymentMethod,
       });
 
       setPlayerId('');
       setPaymentTypeId('');
+      setPaymentMethod('YAPE');
       setPaymentDate(today());
       setPichangaDate('');
       setVoucher(null);
-
-      const fileInput = document.getElementById(
-        'voucher'
-      ) as HTMLInputElement | null;
-
-      if (fileInput) {
-        fileInput.value = '';
-      }
+      setPreview('');
+      clearVoucherInput();
     } catch (err) {
       setError(
         err instanceof Error
@@ -279,8 +310,8 @@ export default function PagosPage() {
           </h1>
 
           <p style={{ color: '#64748b', lineHeight: 1.7 }}>
-            Selecciona tu nombre, el concepto que vas a cancelar y adjunta
-            el comprobante para registrar tu pago.
+            Selecciona tu nombre, el concepto que vas a cancelar y la forma
+            de pago para registrar tu pago.
           </p>
         </div>
 
@@ -311,7 +342,11 @@ export default function PagosPage() {
               <div>
                 <label
                   htmlFor="playerId"
-                  style={{ display: 'block', marginBottom: 8, fontWeight: 700 }}
+                  style={{
+                    display: 'block',
+                    marginBottom: 8,
+                    fontWeight: 700,
+                  }}
                 >
                   Pelotero
                 </label>
@@ -342,7 +377,11 @@ export default function PagosPage() {
               <div>
                 <label
                   htmlFor="paymentTypeId"
-                  style={{ display: 'block', marginBottom: 8, fontWeight: 700 }}
+                  style={{
+                    display: 'block',
+                    marginBottom: 8,
+                    fontWeight: 700,
+                  }}
                 >
                   Tipo de pago
                 </label>
@@ -354,7 +393,9 @@ export default function PagosPage() {
                   onChange={(event) => setPaymentTypeId(event.target.value)}
                   required
                 >
-                  <option value="">Selecciona el concepto que vas a cancelar</option>
+                  <option value="">
+                    Selecciona el concepto que vas a cancelar
+                  </option>
 
                   {paymentTypes.map((type) => (
                     <option key={type.id} value={type.id}>
@@ -371,10 +412,94 @@ export default function PagosPage() {
                 )}
               </div>
 
+              {/* Forma de pago */}
+              <fieldset
+                style={{
+                  border: 0,
+                  padding: 0,
+                  margin: 0,
+                  minWidth: 0,
+                }}
+              >
+                <legend
+                  style={{
+                    display: 'block',
+                    marginBottom: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  Forma de pago
+                </legend>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: 12,
+                  }}
+                >
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 16,
+                      border: `2px solid ${
+                        paymentMethod === 'YAPE' ? '#087f5b' : '#d1d5db'
+                      }`,
+                      borderRadius: 12,
+                      background:
+                        paymentMethod === 'YAPE' ? '#ecfdf5' : '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="YAPE"
+                      checked={paymentMethod === 'YAPE'}
+                      onChange={() => handlePaymentMethodChange('YAPE')}
+                    />
+                    <Smartphone size={22} color="#087f5b" />
+                    <span style={{ fontWeight: 700 }}>Yape</span>
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 16,
+                      border: `2px solid ${
+                        paymentMethod === 'EFECTIVO' ? '#087f5b' : '#d1d5db'
+                      }`,
+                      borderRadius: 12,
+                      background:
+                        paymentMethod === 'EFECTIVO' ? '#ecfdf5' : '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="EFECTIVO"
+                      checked={paymentMethod === 'EFECTIVO'}
+                      onChange={() => handlePaymentMethodChange('EFECTIVO')}
+                    />
+                    <Banknote size={22} color="#087f5b" />
+                    <span style={{ fontWeight: 700 }}>Efectivo</span>
+                  </label>
+                </div>
+              </fieldset>
+
               <div>
                 <label
                   htmlFor="amount"
-                  style={{ display: 'block', marginBottom: 8, fontWeight: 700 }}
+                  style={{
+                    display: 'block',
+                    marginBottom: 8,
+                    fontWeight: 700,
+                  }}
                 >
                   Monto a cancelar
                 </label>
@@ -411,7 +536,13 @@ export default function PagosPage() {
                   />
                 </div>
 
-                <small style={{ color: '#64748b', display: 'block', marginTop: 6 }}>
+                <small
+                  style={{
+                    color: '#64748b',
+                    display: 'block',
+                    marginTop: 6,
+                  }}
+                >
                   El monto se obtiene del tipo de pago seleccionado.
                 </small>
               </div>
@@ -484,102 +615,146 @@ export default function PagosPage() {
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="voucher"
-                  style={{ display: 'block', marginBottom: 8, fontWeight: 700 }}
-                >
-                  Adjunta tu voucher
-                </label>
+              {/* Voucher: solo se muestra para Yape */}
+              {paymentMethod === 'YAPE' ? (
+                <div>
+                  <label
+                    htmlFor="voucher"
+                    style={{
+                      display: 'block',
+                      marginBottom: 8,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Adjunta tu voucher
+                  </label>
 
+                  <div
+                    style={{
+                      border: '2px dashed #b7d8ca',
+                      borderRadius: 16,
+                      padding: '25px 16px',
+                      textAlign: 'center',
+                      background: '#fbfefc',
+                    }}
+                  >
+                    <CloudUpload
+                      size={36}
+                      style={{ color: '#087f5b', marginBottom: 10 }}
+                    />
+
+                    <p style={{ fontWeight: 800, margin: '0 0 6px' }}>
+                      JPG, PNG o PDF
+                    </p>
+
+                    <p
+                      style={{
+                        color: '#64748b',
+                        fontSize: 13,
+                        margin: '0 0 16px',
+                      }}
+                    >
+                      Tamaño máximo: 5 MB
+                    </p>
+
+                    <input
+                      id="voucher"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                      onChange={(event) =>
+                        handleVoucher(event.target.files?.[0] || null)
+                      }
+                      required={paymentMethod === 'YAPE'}
+                      style={{
+                        width: '100%',
+                        maxWidth: 340,
+                      }}
+                    />
+
+                    {voucher && (
+                      <div style={{ marginTop: 16 }}>
+                        {preview && (
+                          <img
+                            src={preview}
+                            alt="Vista previa del voucher"
+                            style={{
+                              display: 'block',
+                              maxWidth: 180,
+                              maxHeight: 180,
+                              objectFit: 'contain',
+                              margin: '0 auto 12px',
+                              borderRadius: 8,
+                            }}
+                          />
+                        )}
+
+                        <p
+                          style={{
+                            overflowWrap: 'anywhere',
+                            fontSize: 13,
+                            color: '#065f46',
+                          }}
+                        >
+                          {voucher.name}
+                          {' · '}
+                          {(voucher.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => {
+                            setVoucher(null);
+                            clearVoucherInput();
+                          }}
+                          style={{
+                            background: '#fee2e2',
+                            color: '#991b1b',
+                            border: 0,
+                          }}
+                        >
+                          <XCircle size={16} />
+                          Quitar archivo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
                 <div
                   style={{
-                    border: '2px dashed #b7d8ca',
-                    borderRadius: 16,
-                    padding: '25px 16px',
-                    textAlign: 'center',
-                    background: '#fbfefc',
+                    padding: 18,
+                    borderRadius: 12,
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
                   }}
                 >
-                  <CloudUpload
-                    size={36}
-                    style={{ color: '#087f5b', marginBottom: 10 }}
-                  />
-
-                  <p style={{ fontWeight: 800, margin: '0 0 6px' }}>
-                    JPG, PNG o PDF
-                  </p>
-
-                  <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 16px' }}>
-                    Tamaño máximo: 5 MB
-                  </p>
-
-                  <input
-                    id="voucher"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                    onChange={(event) =>
-                      handleVoucher(event.target.files?.[0] || null)
-                    }
-                    required
-                    style={{
-                      width: '100%',
-                      maxWidth: 340,
-                    }}
-                  />
-
-                  {voucher && (
-                    <div style={{ marginTop: 16 }}>
-                      {preview && (
-                        <img
-                          src={preview}
-                          alt="Vista previa del voucher"
-                          style={{
-                            display: 'block',
-                            maxWidth: 180,
-                            maxHeight: 180,
-                            objectFit: 'contain',
-                            margin: '0 auto 12px',
-                            borderRadius: 8,
-                          }}
-                        />
-                      )}
-
-                      <p
-                        style={{
-                          overflowWrap: 'anywhere',
-                          fontSize: 13,
-                          color: '#065f46',
-                        }}
-                      >
-                        {voucher.name}
-                        {' · '}
-                        {(voucher.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => {
-                          setVoucher(null);
-                          const input = document.getElementById(
-                            'voucher'
-                          ) as HTMLInputElement | null;
-                          if (input) input.value = '';
-                        }}
-                        style={{
-                          background: '#fee2e2',
-                          color: '#991b1b',
-                          border: 0,
-                        }}
-                      >
-                        <XCircle size={16} />
-                        Quitar archivo
-                      </button>
-                    </div>
-                  )}
+                  <CheckCircle2 size={24} color="#087f5b" />
+                  <div>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 800,
+                        color: '#065f46',
+                      }}
+                    >
+                      Pago en efectivo
+                    </p>
+                    <p
+                      style={{
+                        margin: '5px 0 0',
+                        color: '#64748b',
+                        fontSize: 14,
+                      }}
+                    >
+                      No necesitas adjuntar ningún archivo.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {error && (
                 <div
@@ -624,7 +799,13 @@ export default function PagosPage() {
                       <div>Concepto: {receipt.paymentType}</div>
                       <div>Monto: {formatMoney(receipt.amount)}</div>
                       <div>Fecha de pago: {formatDate(receipt.paymentDate)}</div>
-                      <div>Fecha de pichanga: {formatDate(receipt.pichangaDate)}</div>
+                      <div>
+                        Fecha de pichanga: {formatDate(receipt.pichangaDate)}
+                      </div>
+                      <div>
+                        Forma de pago:{' '}
+                        {receipt.paymentMethod === 'YAPE' ? 'Yape' : 'Efectivo'}
+                      </div>
                       <div>Estado: {receipt.status}</div>
                     </div>
                   )}
