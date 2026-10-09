@@ -42,10 +42,10 @@ export async function POST(req: Request) {
   try {
     const form = await req.formData();
 
-    const playerId = String(form.get('playerId') || '');
-    const paymentTypeId = String(form.get('paymentTypeId') || '');
-    const paymentDateValue = String(form.get('paymentDate') || '');
-    const pichangaDateValue = String(form.get('pichangaDate') || '');
+    const playerId = String(form.get('playerId') || '').trim();
+    const paymentTypeId = String(form.get('paymentTypeId') || '').trim();
+    const paymentDateValue = String(form.get('paymentDate') || '').trim();
+    const pichangaDateValue = String(form.get('pichangaDate') || '').trim();
 
     const methodValue = String(form.get('paymentMethod') || 'YAPE')
       .trim()
@@ -62,55 +62,22 @@ export async function POST(req: Request) {
 
     const fileValue = form.get('voucher');
 
-    // Un archivo vacío se considera como si no se hubiera adjuntado.
     const file =
       fileValue instanceof File && fileValue.size > 0
         ? fileValue
         : null;
 
     const paymentDate = parseDate(paymentDateValue);
-    const pichangaDate = parseDate(pichangaDateValue);
 
-    if (!playerId || !paymentTypeId || !paymentDate || !pichangaDate) {
-      return NextResponse.json(
-        { error: 'Completa todos los campos obligatorios.' },
-        { status: 400 }
-      );
-    }
-
-    if (pichangaDate < paymentDate) {
+    // Estos campos siempre son obligatorios.
+    if (!playerId || !paymentTypeId || !paymentDate) {
       return NextResponse.json(
         {
           error:
-            'La fecha de pichanga no puede ser anterior a la fecha del pago.',
+            'Selecciona el pelotero, el tipo de pago y una fecha de pago válida.',
         },
         { status: 400 }
       );
-    }
-
-    // Solo los pagos por Yape necesitan voucher.
-    if (paymentMethod === 'YAPE' && !file) {
-      return NextResponse.json(
-        { error: 'Adjunta el voucher del pago por Yape.' },
-        { status: 400 }
-      );
-    }
-
-    // Validar el archivo solamente si se adjuntó uno.
-    if (file) {
-      if (!allowedTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: 'El voucher debe ser JPG, PNG o PDF.' },
-          { status: 400 }
-        );
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: 'El voucher no puede superar los 5 MB.' },
-          { status: 400 }
-        );
-      }
     }
 
     const [player, paymentType] = await Promise.all([
@@ -142,6 +109,59 @@ export async function POST(req: Request) {
       );
     }
 
+    // Solo "Pago cuota por partido" requiere fecha de pichanga.
+    const requierePichanga =
+      paymentType.description.trim().toLowerCase() ===
+      'pago cuota por partido';
+
+    let pichangaDate: Date | null = null;
+
+    if (requierePichanga) {
+      pichangaDate = parseDate(pichangaDateValue);
+
+      if (!pichangaDate) {
+        return NextResponse.json(
+          { error: 'Selecciona una fecha de pichanga válida.' },
+          { status: 400 }
+        );
+      }
+
+      if (pichangaDate < paymentDate) {
+        return NextResponse.json(
+          {
+            error:
+              'La fecha de pichanga no puede ser anterior a la fecha del pago.',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Solo los pagos por Yape necesitan voucher.
+    if (paymentMethod === 'YAPE' && !file) {
+      return NextResponse.json(
+        { error: 'Adjunta el voucher del pago por Yape.' },
+        { status: 400 }
+      );
+    }
+
+    // Validar el archivo solamente si se adjuntó uno.
+    if (file) {
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: 'El voucher debe ser JPG, PNG o PDF.' },
+          { status: 400 }
+        );
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'El voucher no puede superar los 5 MB.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const dayEnd = new Date(paymentDate);
     dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
@@ -166,12 +186,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Los datos del voucher comienzan vacíos.
     let voucherUrl: string | null = null;
     let voucherFileName: string | null = null;
     let voucherFileType: string | null = null;
 
-    // Solo subimos archivos cuando realmente hay un voucher.
+    // Subir el voucher a Google Drive únicamente para Yape.
     if (paymentMethod === 'YAPE' && file) {
       const desiredName = [
         paymentType.description,
