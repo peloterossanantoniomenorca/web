@@ -36,6 +36,16 @@ model Player {
   @@index([fullName])
 }
 
+model PaymentType {
+  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  description String    @unique
+  amount      Decimal   @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  payments    Payment[]
+}
+
 model Payment {
   id              String        @id @default(cuid())
   playerId        String
@@ -45,12 +55,17 @@ model Payment {
   voucherFileType String
   amount          Decimal?      @db.Decimal(10, 2)
   status          PaymentStatus @default(PENDING)
+  paymentTypeId   String?
+  pichangaDate    DateTime?     @db.Timestamptz(6)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
   player          Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  paymentType     PaymentType?  @relation(fields: [paymentTypeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([playerId, paymentDate])
   @@index([status])
+  @@index([paymentTypeId])
 }
 
 model Admin {
