@@ -132,6 +132,7 @@ const estilos = {
   } as const,
 };
 
+// Los egresos utilizan fechas de calendario de Perú.
 function inicioDelDia(fecha: string): Date {
   return new Date(`${fecha}T00:00:00-05:00`);
 }
@@ -156,9 +157,29 @@ function fechaLima(fecha: Date): string {
   return `${obtener('year')}-${obtener('month')}-${obtener('day')}`;
 }
 
+// Los ingresos se muestran usando la fecha UTC almacenada.
+function inicioPagoUTC(fecha: string): Date {
+  return new Date(`${fecha}T00:00:00.000Z`);
+}
+
+function finPagoUTCExclusivo(fecha: string): Date {
+  const resultado = inicioPagoUTC(fecha);
+  resultado.setUTCDate(resultado.getUTCDate() + 1);
+  return resultado;
+}
+
 function formatoFecha(fecha: Date): string {
   return new Intl.DateTimeFormat('es-PE', {
     timeZone: ZONA_HORARIA,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(fecha);
+}
+
+function formatoFechaPago(fecha: Date): string {
+  return new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'UTC',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -195,8 +216,17 @@ export default async function BalancePage({
 
   const rangoValido = !desde || !hasta || desde <= hasta;
 
-  const inicio = desde ? inicioDelDia(desde) : undefined;
-  const finExclusivo = hasta ? inicioDiaSiguiente(hasta) : undefined;
+  // Filtros de ingresos: UTC.
+  const inicioPago = desde ? inicioPagoUTC(desde) : undefined;
+  const finPagoExclusivo = hasta
+    ? finPagoUTCExclusivo(hasta)
+    : undefined;
+
+  // Filtros de egresos: hora local de Perú.
+  const inicioEgreso = desde ? inicioDelDia(desde) : undefined;
+  const finEgresoExclusivo = hasta
+    ? inicioDiaSiguiente(hasta)
+    : undefined;
 
   const filtroPagos: {
     status: 'APPROVED';
@@ -207,19 +237,31 @@ export default async function BalancePage({
     fecha?: { gte?: Date; lt?: Date };
   } = {};
 
-  if (inicio) {
-    filtroPagos.paymentDate = { gte: inicio };
-    filtroEgresos.fecha = { gte: inicio };
-  }
-
-  if (finExclusivo) {
+  if (inicioPago) {
     filtroPagos.paymentDate = {
       ...filtroPagos.paymentDate,
-      lt: finExclusivo,
+      gte: inicioPago,
     };
+  }
+
+  if (finPagoExclusivo) {
+    filtroPagos.paymentDate = {
+      ...filtroPagos.paymentDate,
+      lt: finPagoExclusivo,
+    };
+  }
+
+  if (inicioEgreso) {
     filtroEgresos.fecha = {
       ...filtroEgresos.fecha,
-      lt: finExclusivo,
+      gte: inicioEgreso,
+    };
+  }
+
+  if (finEgresoExclusivo) {
+    filtroEgresos.fecha = {
+      ...filtroEgresos.fecha,
+      lt: finEgresoExclusivo,
     };
   }
 
@@ -261,7 +303,8 @@ export default async function BalancePage({
     if (
       concepto.trim().toLowerCase() === CONCEPTO_CUOTA.toLowerCase()
     ) {
-      const dia = fechaLima(pago.paymentDate);
+      // Agrupar las cuotas según el día UTC del pago.
+      const dia = pago.paymentDate.toISOString().slice(0, 10);
       const clave = `${dia}|${CONCEPTO_CUOTA}`;
       const existente = cuotasAgrupadas.get(clave);
 
@@ -630,7 +673,7 @@ export default async function BalancePage({
                     }}
                   >
                     <td style={{ ...estilos.celda, whiteSpace: 'nowrap' }}>
-                      {formatoFecha(ingreso.fecha)}
+                      {formatoFechaPago(ingreso.fecha)}
                     </td>
                     <td
                       style={{
