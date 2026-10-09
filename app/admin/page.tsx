@@ -125,6 +125,27 @@ export default async function AdminPage() {
             Registra gastos, responsables y comprobantes.
           </p>
         </Link>
+
+        <Link
+          href="/admin/reporte-egresos"
+          style={{
+            display: 'block',
+            padding: 24,
+            border: '1px solid #bfdbfe',
+            borderRadius: 12,
+            textDecoration: 'none',
+            color: '#1d4ed8',
+            background: '#eff6ff',
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Reporte de egresos
+          </h2>
+
+          <p style={{ marginTop: 8, color: '#1d4ed8' }}>
+            Consulta los gastos por año, mes y tipo de egreso.
+          </p>
+        </Link>
       </div>
     </main>
   );
