@@ -15,8 +15,9 @@ export default async function AdminPage() {
     <main
       className="container"
       style={{
-        padding: '48px 0',
+        padding: '48px 16px',
         maxWidth: 1000,
+        margin: '0 auto',
       }}
     >
       <div
@@ -24,20 +25,32 @@ export default async function AdminPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 20,
-          marginBottom: 32,
+          gap: 16,
           flexWrap: 'wrap',
+          marginBottom: 32,
         }}
       >
         <div>
-          <h1>Panel administrador</h1>
-          <p style={{ color: '#64748b' }}>
-            Gestiona los peloteros, los ingresos y los egresos del club.
+          <h1 style={{ fontSize: 30, fontWeight: 700 }}>
+            Panel administrador
+          </h1>
+
+          <p style={{ color: '#6b7280', marginTop: 8 }}>
+            Administración de Peloteros San Antonio FC
           </p>
         </div>
 
-        <form action="/admin/logout" method="POST">
-          <button type="submit" className="btn btn-dark">
+        <form action="/api/auth/logout" method="POST">
+          <button
+            type="submit"
+            style={{
+              padding: '10px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: 8,
+              background: '#fff',
+              cursor: 'pointer',
+            }}
+          >
             Cerrar sesión
           </button>
         </form>
@@ -46,73 +59,71 @@ export default async function AdminPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
           gap: 20,
         }}
       >
         <Link
           href="/admin/peloteros"
-          className="card"
           style={{
-            padding: 28,
-            textDecoration: 'none',
-            color: 'inherit',
             display: 'block',
+            padding: 24,
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            textDecoration: 'none',
+            color: '#111827',
+            background: '#fff',
           }}
         >
-          <h2>Registro de peloteros</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Registro de peloteros
+          </h2>
 
-          <p style={{ color: '#64748b' }}>
-            Registrar nuevos peloteros, consultar los existentes y
-            activar o desactivar jugadores.
+          <p style={{ marginTop: 8, color: '#6b7280' }}>
+            Gestiona los jugadores del club.
           </p>
-
-          <div style={{ marginTop: 20, fontWeight: 800 }}>
-            Administrar peloteros →
-          </div>
         </Link>
 
         <Link
           href="/reportes"
-          className="card"
           style={{
-            padding: 28,
-            textDecoration: 'none',
-            color: 'inherit',
             display: 'block',
+            padding: 24,
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            textDecoration: 'none',
+            color: '#111827',
+            background: '#fff',
           }}
         >
-          <h2>Reportes</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Reportes
+          </h2>
 
-          <p style={{ color: '#64748b' }}>
-            Consulta los pagos y genera reportes del club.
+          <p style={{ marginTop: 8, color: '#6b7280' }}>
+            Consulta la información y los reportes del club.
           </p>
-
-          <div style={{ marginTop: 20, fontWeight: 800 }}>
-            Ver reportes →
-          </div>
         </Link>
 
         <Link
           href="/admin/egresos"
-          className="card"
           style={{
-            padding: 28,
-            textDecoration: 'none',
-            color: 'inherit',
             display: 'block',
+            padding: 24,
+            border: '1px solid #bbf7d0',
+            borderRadius: 12,
+            textDecoration: 'none',
+            color: '#166534',
+            background: '#f0fdf4',
           }}
         >
-          <h2>Registro de egresos</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Registro de egresos
+          </h2>
 
-          <p style={{ color: '#64748b' }}>
-            Registrar gastos del club, seleccionar al pelotero
-            responsable y adjuntar los comprobantes correspondientes.
+          <p style={{ marginTop: 8, color: '#166534' }}>
+            Registra gastos, responsables y comprobantes.
           </p>
-
-          <div style={{ marginTop: 20, fontWeight: 800 }}>
-            Registrar egresos →
-          </div>
         </Link>
       </div>
     </main>
