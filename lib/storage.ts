@@ -1,6 +1,6 @@
-
 import { google } from 'googleapis';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 
 export const runtime = 'nodejs';
 
@@ -10,9 +10,18 @@ function getDriveClient() {
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
+  // Identificar las variables que no están disponibles
+  // sin exponer credenciales en los registros.
+  const missing: string[] = [];
+
+  if (!clientId) missing.push('GOOGLE_CLIENT_ID');
+  if (!clientSecret) missing.push('GOOGLE_CLIENT_SECRET');
+  if (!redirectUri) missing.push('GOOGLE_REDIRECT_URI');
+  if (!refreshToken) missing.push('GOOGLE_REFRESH_TOKEN');
+
+  if (missing.length > 0) {
     throw new Error(
-      'Faltan variables de entorno para conectar Google Drive.'
+      `Faltan variables de entorno de Google Drive: ${missing.join(', ')}`
     );
   }
 
@@ -33,10 +42,30 @@ function getDriveClient() {
 }
 
 export async function uploadVoucher(file: File) {
+  if (!file || file.size === 0) {
+    throw new Error('El archivo del voucher está vacío.');
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('El voucher no puede superar los 5 MB.');
+  }
+
+  const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Formato no permitido para el voucher.');
+  }
+
   const drive = getDriveClient();
 
-  const extension = file.name.split('.').pop()?.toLowerCase() || 'bin';
-  const safeName = `voucher-${crypto.randomUUID()}.${extension}`;
+  const extension =
+    file.name.split('.').pop()?.toLowerCase() || 'bin';
+
+  const safeName = `voucher-${randomUUID()}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const uploaded = await drive.files.create({
@@ -54,11 +83,13 @@ export async function uploadVoucher(file: File) {
   const fileId = uploaded.data.id;
 
   if (!fileId) {
-    throw new Error('Google Drive no devolvió el ID del voucher.');
+    throw new Error(
+      'Google Drive no devolvió el identificador del voucher.'
+    );
   }
 
-  // Permite que cualquier persona con el enlace pueda ver este archivo.
-  // No hace pública toda la carpeta de Google Drive.
+  // Hace visible únicamente este archivo para cualquier persona
+  // que tenga el enlace. No publica toda la carpeta de Drive.
   await drive.permissions.create({
     fileId,
     requestBody: {
