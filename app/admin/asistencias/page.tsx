@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -18,7 +17,7 @@ type Player = {
 };
 
 type Attendance = {
-  id: string;
+  id: string | null;
   playerId: string;
   fechaPichanga: string;
   asistio: boolean;
@@ -88,7 +87,10 @@ export default function AsistenciasPage() {
             playerId: player.id,
             fullName: player.fullName,
             asistio: existing?.asistio ?? false,
-            estadoPago: existing?.estadoPago ?? 'POR_PAGAR',
+            estadoPago:
+              existing?.estadoPago === 'PAGADO'
+                ? 'PAGADO'
+                : 'POR_PAGAR',
           };
         })
       );
@@ -153,7 +155,9 @@ export default function AsistenciasPage() {
       }
 
       setSuccess(
-        `¡Asistencia guardada! ${data.total ?? rows.filter((r) => r.asistio).length} peloteros registrados como asistentes para el ${formatDate(fecha)}.`
+        `¡Asistencia guardada! ${
+          data.total ?? rows.filter((row) => row.asistio).length
+        } peloteros registrados como asistentes para el ${formatDate(fecha)}.`
       );
 
       await cargarAsistencias();
@@ -168,13 +172,17 @@ export default function AsistenciasPage() {
     }
   }
 
+  // Contadores de asistencia.
   const asistentes = rows.filter((row) => row.asistio).length;
   const ausentes = rows.length - asistentes;
+
+  // Contadores de pago independientes de la asistencia.
   const pendientes = rows.filter(
-    (row) => row.asistio && row.estadoPago !== 'PAGADO'
+    (row) => row.estadoPago !== 'PAGADO'
   ).length;
+
   const pagados = rows.filter(
-    (row) => row.asistio && row.estadoPago === 'PAGADO'
+    (row) => row.estadoPago === 'PAGADO'
   ).length;
 
   const thStyle = {
@@ -529,29 +537,27 @@ export default function AsistenciasPage() {
                     </td>
 
                     <td style={tdStyle}>
-                      {row.asistio ? (
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            borderRadius: 999,
-                            padding: '5px 10px',
-                            fontSize: 12,
-                            fontWeight: 800,
-                            background:
-                              row.estadoPago === 'PAGADO'
-                                ? '#dcfce7'
-                                : '#fef3c7',
-                            color:
-                              row.estadoPago === 'PAGADO'
-                                ? '#166534'
-                                : '#92400e',
-                          }}
-                        >
-                          {row.estadoPago === 'PAGADO' ? 'Pagado' : 'Por pagar'}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>—</span>
-                      )}
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          borderRadius: 999,
+                          padding: '5px 10px',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          background:
+                            row.estadoPago === 'PAGADO'
+                              ? '#dcfce7'
+                              : '#fef3c7',
+                          color:
+                            row.estadoPago === 'PAGADO'
+                              ? '#166534'
+                              : '#92400e',
+                        }}
+                      >
+                        {row.estadoPago === 'PAGADO'
+                          ? 'Pagado'
+                          : 'Por pagar'}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -571,11 +577,11 @@ export default function AsistenciasPage() {
                 lineHeight: 1.6,
               }}
             >
-              <strong>Importante:</strong> guardar la asistencia registra
-              quiénes asistieron y crea el estado inicial «Por pagar» para
-              los nuevos registros. El estado de pago se muestra aquí; la
-              función para marcarlo como pagado se conectará en el siguiente
-              paso.
+              <strong>Importante:</strong> solo los pagos aprobados del
+              concepto «Pago cuota por partido» cuentan como pagados para
+              la fecha de pichanga correspondiente. Las donaciones y los
+              demás conceptos no cuentan como cuotas. El estado de pago
+              se muestra independientemente de si el pelotero asistió.
             </div>
           )}
         </section>
