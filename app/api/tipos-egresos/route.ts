@@ -5,7 +5,6 @@ import { getSession } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Consultar los tipos de egresos
 export async function GET() {
   try {
     const session = await getSession();
@@ -38,7 +37,6 @@ export async function GET() {
   }
 }
 
-// Registrar un nuevo tipo de egreso
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -66,7 +64,9 @@ export async function POST(request: Request) {
 
     if (descripcion.length > 100) {
       return NextResponse.json(
-        { error: 'La descripción no puede superar los 100 caracteres.' },
+        {
+          error: 'La descripción no puede superar los 100 caracteres.',
+        },
         { status: 400 }
       );
     }
@@ -85,7 +85,9 @@ export async function POST(request: Request) {
 
     if (existente) {
       return NextResponse.json(
-        { error: 'Ya existe un tipo de egreso con esa descripción.' },
+        {
+          error: 'Ya existe un tipo de egreso con esa descripción.',
+        },
         { status: 409 }
       );
     }
@@ -108,10 +110,23 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('ERROR REGISTRANDO TIPO DE EGRESO:', error);
+    const detalle =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : String(error);
+
+    console.error(
+      'ERROR REGISTRANDO TIPO DE EGRESO:',
+      detalle,
+      error
+    );
 
     return NextResponse.json(
-      { error: 'No se pudo registrar el tipo de egreso.' },
+      {
+        error: 'No se pudo registrar el tipo de egreso.',
+        detalle:
+          'Revisa los registros de la función en Vercel para identificar la causa.',
+      },
       { status: 500 }
     );
   }
