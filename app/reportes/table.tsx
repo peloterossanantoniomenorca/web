@@ -331,21 +331,7 @@ export default function ReportsTable({
               </td>
 
               <td style={tdStyle}>
-                {p.status === 'APPROVED' ? (
-                  <span
-                    aria-disabled="true"
-                    title="El voucher no está disponible para pagos aprobados"
-                    style={{
-                      color: '#94a3b8',
-                      cursor: 'not-allowed',
-                      textDecoration: 'none',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Voucher eliminado
-                  </span>
-                ) : p.voucher ? (
+                {p.voucher ? (
                   <a
                     href={p.voucher}
                     target="_blank"
@@ -354,12 +340,18 @@ export default function ReportsTable({
                       color: '#047857',
                       fontWeight: 700,
                       textDecoration: 'underline',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     Ver voucher
                   </a>
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>
+                  <span
+                    style={{
+                      color: '#94a3b8',
+                      fontWeight: 600,
+                    }}
+                  >
                     No disponible
                   </span>
                 )}
