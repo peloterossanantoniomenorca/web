@@ -9,9 +9,9 @@ type PaymentRow = {
   pichangaDate: string | null;
   paymentType: string;
   amount: number | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  voucher: string;
-  file: string;
+  status: PaymentStatus;
+  voucher: string | null;
+  file: string | null;
   created: string;
 };
 
