@@ -37,6 +37,7 @@ export default async function Reports() {
       ? p.pichangaDate.toISOString()
       : null,
     paymentType: p.paymentType?.description ?? 'No especificado',
+    paymentMethod: payment.paymentMethod ?? 'No especificado',
     amount: p.amount === null ? null : Number(p.amount),
     status: p.status,
     voucher: p.voucherUrl,
