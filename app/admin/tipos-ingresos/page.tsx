@@ -59,10 +59,22 @@ export default function TiposIngresosPage() {
     const descripcion = description.trim();
     const importe = Number(amount);
 
-    if (!descripcion || !Number.isFinite(importe) || importe <= 0) {
-      setError('Ingresa una descripción y un monto mayor que cero.');
-      return;
-    }
+if (!descripcion) {
+  setError('La descripción es obligatoria.');
+  return;
+}
+
+const montoFinal = amount.trim() === '' ? 0 : Number(amount);
+
+if (
+  !Number.isFinite(montoFinal) ||
+  montoFinal < 0 ||
+  montoFinal > 99999999.99 ||
+  !/^\d+(\.\d{1,2})?$/.test(String(montoFinal))
+) {
+  setError('Ingresa un monto válido, con máximo dos decimales.');
+  return;
+}
 
     setGuardando(true);
 
@@ -74,7 +86,7 @@ export default function TiposIngresosPage() {
         },
         body: JSON.stringify({
           description: descripcion,
-          amount: importe,
+          amount: montoFinal,
         }),
       });
 
@@ -260,7 +272,6 @@ export default function TiposIngresosPage() {
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="Ej. 50.00"
-                required
                 style={campo}
               />
             </div>
