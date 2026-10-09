@@ -5,8 +5,6 @@ import { getSession } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const TIPO_CUOTA_PARTIDO = 'Pago cuota por partido';
-
 function isValidDate(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -20,43 +18,42 @@ function isValidDate(value: unknown): value is string {
 }
 
 function getDateRange(fecha: string) {
-  const start = new Date(`${fecha}T00:00:00.000Z`);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const inicio = new Date(`${fecha}T00:00:00.000Z`);
+  const fin = new Date(inicio);
+  fin.setUTCDate(fin.getUTCDate() + 1);
 
-  return { start, end };
+  return { inicio, fin };
 }
 
-async function getApprovedMatchFeePlayerIds(
-  fecha: string,
-  playerIds: string[]
-) {
-  if (playerIds.length === 0) {
-    return new Set<string>();
-  }
+/**
+ * Devuelve los jugadores que tienen una cuota por partido
+ * aprobada para la fecha indicada.
+ *
+ * Se ignoran las donaciones y todos los demás tipos de pago.
+ * La fecha se compara por día, sin exigir una hora exacta.
+ */
+async function obtenerJugadoresPagados(fecha: string) {
+  const { inicio, fin } = getDateRange(fecha);
 
-  const { start, end } = getDateRange(fecha);
-
-  const payments = await prisma.payment.findMany({
+  const pagos = await prisma.payment.findMany({
     where: {
-      playerId: { in: playerIds },
       status: 'APPROVED',
+      pichangaDate: {
+        gte: inicio,
+        lt: fin,
+      },
       paymentType: {
         is: {
-          description: TIPO_CUOTA_PARTIDO,
+          description: 'Pago cuota por partido',
         },
-      },
-      pichangaDate: {
-        gte: start,
-        lt: end,
       },
     },
     select: {
       playerId: true,
     },
-    distinct: ['playerId'],
   });
 
-  return new Set(payments.map((payment) => payment.playerId));
+  return new Set(pagos.map((pago) => pago.playerId));
 }
 
 export async function GET(request: Request) {
@@ -82,59 +79,61 @@ export async function GET(request: Request) {
 
     const fechaPichanga = new Date(`${fecha}T00:00:00.000Z`);
 
-    const [players, asistencias] = await Promise.all([
-      prisma.player.findMany({
-        where: { status: 'ACTIVE' },
-        select: {
-          id: true,
-          fullName: true,
-        },
-        orderBy: { fullName: 'asc' },
-      }),
+    const [players, asistencias, jugadoresPagados] =
+      await Promise.all([
+        prisma.player.findMany({
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true,
+            fullName: true,
+          },
+          orderBy: { fullName: 'asc' },
+        }),
 
-      prisma.asistencia.findMany({
-        where: { fechaPichanga },
-        select: {
-          id: true,
-          playerId: true,
-          fechaPichanga: true,
-          asistio: true,
-          estadoPago: true,
-        },
-      }),
-    ]);
+        prisma.asistencia.findMany({
+          where: { fechaPichanga },
+          select: {
+            id: true,
+            playerId: true,
+            fechaPichanga: true,
+            asistio: true,
+            estadoPago: true,
+          },
+        }),
 
-    const playerIds = players.map((player) => player.id);
+        obtenerJugadoresPagados(fecha),
+      ]);
 
-    const paidPlayerIds = await getApprovedMatchFeePlayerIds(
-      fecha,
-      playerIds
-    );
-
-    const attendanceByPlayer = new Map(
-      asistencias.map((attendance) => [
-        attendance.playerId,
-        attendance,
+    const asistenciaPorJugador = new Map(
+      asistencias.map((asistencia) => [
+        asistencia.playerId,
+        asistencia,
       ])
     );
 
-    const result = players.map((player) => {
-      const attendance = attendanceByPlayer.get(player.id);
-      const pagado = paidPlayerIds.has(player.id);
+    // Incluye a todos los jugadores activos, incluso si todavía
+    // no se ha guardado su asistencia para esa fecha.
+    const resultado = players.map((player) => {
+      const asistencia = asistenciaPorJugador.get(player.id);
 
       return {
-        id: attendance?.id ?? null,
+        id: asistencia?.id ?? null,
         playerId: player.id,
-        fechaPichanga,
-        asistio: attendance?.asistio ?? false,
-        estadoPago: pagado ? 'PAGADO' : 'POR_PAGAR',
+        fechaPichanga: `${fecha}T00:00:00.000Z`,
+        asistio: asistencia?.asistio ?? false,
+
+        // El pago solo cuenta si es la cuota por partido,
+        // está aprobado y corresponde a esta fecha.
+        estadoPago: jugadoresPagados.has(player.id)
+          ? 'PAGADO'
+          : 'POR_PAGAR',
       };
     });
 
     return NextResponse.json({
       fecha,
       players,
-      asistencias: result,
+      asistencias: resultado,
     });
   } catch (error) {
     console.error('ERROR CONSULTANDO ASISTENCIAS:', error);
@@ -185,7 +184,10 @@ export async function POST(request: Request) {
         typeof item.asistio !== 'boolean'
       ) {
         return NextResponse.json(
-          { error: 'Hay datos inválidos en la lista de asistencias.' },
+          {
+            error:
+              'Hay datos inválidos en la lista de asistencias.',
+          },
           { status: 400 }
         );
       }
@@ -202,13 +204,17 @@ export async function POST(request: Request) {
 
     const fechaPichanga = new Date(`${fecha}T00:00:00.000Z`);
 
-    const players = await prisma.player.findMany({
-      where: {
-        id: { in: playerIds },
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
+    const [players, jugadoresPagados] = await Promise.all([
+      prisma.player.findMany({
+        where: {
+          id: { in: playerIds },
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      }),
+
+      obtenerJugadoresPagados(fecha),
+    ]);
 
     if (players.length !== playerIds.length) {
       return NextResponse.json(
@@ -220,15 +226,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const paidPlayerIds = await getApprovedMatchFeePlayerIds(
-      fecha,
-      playerIds
-    );
-
     await prisma.$transaction(
       asistencias.map(
-        (item: { playerId: string; asistio: boolean }) =>
-          prisma.asistencia.upsert({
+        (item: { playerId: string; asistio: boolean }) => {
+          const estadoPago = jugadoresPagados.has(item.playerId)
+            ? 'PAGADO'
+            : 'POR_PAGAR';
+
+          return prisma.asistencia.upsert({
             where: {
               playerId_fechaPichanga: {
                 playerId: item.playerId,
@@ -239,18 +244,15 @@ export async function POST(request: Request) {
               playerId: item.playerId,
               fechaPichanga,
               asistio: item.asistio,
-              estadoPago: paidPlayerIds.has(item.playerId)
-                ? 'PAGADO'
-                : 'POR_PAGAR',
+              estadoPago,
             },
             update: {
               asistio: item.asistio,
-              estadoPago: paidPlayerIds.has(item.playerId)
-                ? 'PAGADO'
-                : 'POR_PAGAR',
+              estadoPago,
               updatedAt: new Date(),
             },
-          })
+          });
+        }
       )
     );
 
