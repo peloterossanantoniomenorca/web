@@ -81,13 +81,21 @@ export default async function AdminPage() {
           gap: 20,
         }}
       >
-        {/* Registro de peloteros */}
-        <Link href="/admin/peloteros" style={estiloTarjeta}>
+        {/* Registro de peloteros: azul */}
+        <Link
+          href="/admin/peloteros"
+          style={{
+            ...estiloTarjeta,
+            borderColor: '#bfdbfe',
+            color: '#1d4ed8',
+            background: '#eff6ff',
+          }}
+        >
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Registro de peloteros
           </h2>
 
-          <p style={{ marginTop: 8, color: '#6b7280' }}>
+          <p style={{ marginTop: 8, color: '#1d4ed8' }}>
             Gestiona los jugadores del club.
           </p>
         </Link>
@@ -112,14 +120,22 @@ export default async function AdminPage() {
           </p>
         </Link>
 
-        {/* Reportes generales */}
-        <Link href="/reportes" style={estiloTarjeta}>
+        {/* Aprobar pagos: naranja */}
+        <Link
+          href="/reportes"
+          style={{
+            ...estiloTarjeta,
+            borderColor: '#fed7aa',
+            color: '#9a3412',
+            background: '#fff7ed',
+          }}
+        >
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-            Reportes
+            Aprobar pagos
           </h2>
 
-          <p style={{ marginTop: 8, color: '#6b7280' }}>
-            Consulta la información y los reportes del club.
+          <p style={{ marginTop: 8, color: '#9a3412' }}>
+            Consulta y gestiona la revisión de los pagos registrados.
           </p>
         </Link>
 
