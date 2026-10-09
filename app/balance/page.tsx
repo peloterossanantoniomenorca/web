@@ -15,17 +15,131 @@ type SearchParams = {
   hasta?: string;
 };
 
+const VERDE = '#07533f';
+const VERDE_OSCURO = '#064332';
+const FONDO = '#f3f8f5';
 const ZONA_HORARIA = 'America/Lima';
 const CONCEPTO_CUOTA = 'Pago cuota por partido';
+
+const estilos = {
+  pagina: {
+    minHeight: '100vh',
+    backgroundColor: FONDO,
+    padding: '32px 24px 48px',
+    color: '#1e293b',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  } as const,
+  contenedor: {
+    width: '100%',
+    maxWidth: '1200px',
+    margin: '0 auto',
+  } as const,
+  encabezado: {
+    backgroundColor: VERDE_OSCURO,
+    color: '#ffffff',
+    padding: '30px 32px',
+    borderRadius: '16px',
+    marginBottom: '24px',
+    boxShadow: '0 5px 16px rgba(6, 67, 50, 0.12)',
+  } as const,
+  volver: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: '#d1fae5',
+    textDecoration: 'none',
+    fontSize: '14px',
+    marginBottom: '22px',
+  } as const,
+  titulo: {
+    fontSize: '30px',
+    fontWeight: 800,
+    margin: '0 0 10px',
+    lineHeight: 1.25,
+  } as const,
+  subtitulo: {
+    color: '#d1fae5',
+    fontSize: '15px',
+    margin: '0',
+    lineHeight: 1.6,
+  } as const,
+  tarjeta: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '14px',
+    padding: '24px',
+    marginBottom: '24px',
+    boxShadow: '0 3px 10px rgba(15, 23, 42, 0.035)',
+  } as const,
+  tituloSeccion: {
+    fontSize: '21px',
+    fontWeight: 750,
+    color: VERDE,
+    margin: '0 0 8px',
+  } as const,
+  etiqueta: {
+    display: 'block',
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#475569',
+    marginBottom: '8px',
+  } as const,
+  campo: {
+    display: 'block',
+    width: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box' as const,
+    height: '46px',
+    padding: '10px 12px',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    color: '#0f172a',
+    fontSize: '14px',
+  } as const,
+  boton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box' as const,
+    minHeight: '46px',
+    padding: '12px 18px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 700,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  } as const,
+  tablaContenedor: {
+    width: '100%',
+    overflowX: 'auto' as const,
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    backgroundColor: '#ffffff',
+  } as const,
+  tabla: {
+    width: '100%',
+    minWidth: '650px',
+    borderCollapse: 'collapse' as const,
+    textAlign: 'left' as const,
+    fontSize: '14px',
+  } as const,
+  celda: {
+    padding: '15px 18px',
+    borderBottom: '1px solid #edf2f7',
+    verticalAlign: 'middle' as const,
+  } as const,
+};
 
 function inicioDelDia(fecha: string): Date {
   return new Date(`${fecha}T00:00:00-05:00`);
 }
 
 function inicioDiaSiguiente(fecha: string): Date {
-  const fechaBase = inicioDelDia(fecha);
-  fechaBase.setUTCDate(fechaBase.getUTCDate() + 1);
-  return fechaBase;
+  const resultado = inicioDelDia(fecha);
+  resultado.setUTCDate(resultado.getUTCDate() + 1);
+  return resultado;
 }
 
 function fechaLima(fecha: Date): string {
@@ -66,10 +180,7 @@ function fechaValida(fecha?: string): boolean {
 
   const date = new Date(`${fecha}T12:00:00-05:00`);
 
-  return (
-    !Number.isNaN(date.getTime()) &&
-    fechaLima(date) === fecha
-  );
+  return !Number.isNaN(date.getTime()) && fechaLima(date) === fecha;
 }
 
 export default async function BalancePage({
@@ -79,48 +190,26 @@ export default async function BalancePage({
 }) {
   const parametros = await searchParams;
 
-  const desde = fechaValida(parametros.desde)
-    ? parametros.desde!
-    : '';
-
-  const hasta = fechaValida(parametros.hasta)
-    ? parametros.hasta!
-    : '';
+  const desde = fechaValida(parametros.desde) ? parametros.desde! : '';
+  const hasta = fechaValida(parametros.hasta) ? parametros.hasta! : '';
 
   const rangoValido = !desde || !hasta || desde <= hasta;
 
   const inicio = desde ? inicioDelDia(desde) : undefined;
-  const finExclusivo = hasta
-    ? inicioDiaSiguiente(hasta)
-    : undefined;
+  const finExclusivo = hasta ? inicioDiaSiguiente(hasta) : undefined;
 
   const filtroPagos: {
     status: 'APPROVED';
-    paymentDate?: {
-      gte?: Date;
-      lt?: Date;
-    };
-  } = {
-    status: 'APPROVED',
-  };
+    paymentDate?: { gte?: Date; lt?: Date };
+  } = { status: 'APPROVED' };
 
   const filtroEgresos: {
-    fecha?: {
-      gte?: Date;
-      lt?: Date;
-    };
+    fecha?: { gte?: Date; lt?: Date };
   } = {};
 
   if (inicio) {
-    filtroPagos.paymentDate = {
-      ...filtroPagos.paymentDate,
-      gte: inicio,
-    };
-
-    filtroEgresos.fecha = {
-      ...filtroEgresos.fecha,
-      gte: inicio,
-    };
+    filtroPagos.paymentDate = { gte: inicio };
+    filtroEgresos.fecha = { gte: inicio };
   }
 
   if (finExclusivo) {
@@ -128,7 +217,6 @@ export default async function BalancePage({
       ...filtroPagos.paymentDate,
       lt: finExclusivo,
     };
-
     filtroEgresos.fecha = {
       ...filtroEgresos.fecha,
       lt: finExclusivo,
@@ -140,34 +228,17 @@ export default async function BalancePage({
         prisma.payment.findMany({
           where: filtroPagos,
           include: {
-            player: {
-              select: {
-                fullName: true,
-              },
-            },
-            paymentType: {
-              select: {
-                description: true,
-              },
-            },
+            player: { select: { fullName: true } },
+            paymentType: { select: { description: true } },
           },
-          orderBy: {
-            paymentDate: 'desc',
-          },
+          orderBy: { paymentDate: 'desc' },
         }),
-
         prisma.egreso.findMany({
           where: filtroEgresos,
           include: {
-            tipoEgreso: {
-              select: {
-                descripcion: true,
-              },
-            },
+            tipoEgreso: { select: { descripcion: true } },
           },
-          orderBy: {
-            fecha: 'desc',
-          },
+          orderBy: { fecha: 'desc' },
         }),
       ])
     : [[], []];
@@ -180,23 +251,24 @@ export default async function BalancePage({
     clave: string;
   };
 
-  const ingresosAgrupados = new Map<string, Ingreso>();
+  const cuotasAgrupadas = new Map<string, Ingreso>();
   const ingresosIndividuales: Ingreso[] = [];
 
   for (const pago of pagos) {
     const importe = Number(pago.amount ?? 0);
-    const concepto =
-      pago.paymentType?.description ?? 'Sin concepto';
+    const concepto = pago.paymentType?.description ?? 'Sin concepto';
 
-    if (concepto.trim().toLowerCase() === CONCEPTO_CUOTA.toLowerCase()) {
+    if (
+      concepto.trim().toLowerCase() === CONCEPTO_CUOTA.toLowerCase()
+    ) {
       const dia = fechaLima(pago.paymentDate);
       const clave = `${dia}|${CONCEPTO_CUOTA}`;
-      const existente = ingresosAgrupados.get(clave);
+      const existente = cuotasAgrupadas.get(clave);
 
       if (existente) {
         existente.importe += importe;
       } else {
-        ingresosAgrupados.set(clave, {
+        cuotasAgrupadas.set(clave, {
           fecha: pago.paymentDate,
           jugador: 'VARIOS',
           concepto: CONCEPTO_CUOTA,
@@ -217,7 +289,7 @@ export default async function BalancePage({
 
   const ingresos: Ingreso[] = [
     ...ingresosIndividuales,
-    ...Array.from(ingresosAgrupados.values()),
+    ...Array.from(cuotasAgrupadas.values()),
   ].sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 
   const totalIngresos = ingresos.reduce(
@@ -241,69 +313,140 @@ export default async function BalancePage({
           ? `Hasta el ${formatoFecha(inicioDelDia(hasta))}`
           : 'Todos los movimientos registrados';
 
+  const tarjetasResumen = [
+    {
+      titulo: 'Total de ingresos',
+      total: totalIngresos,
+      detalle: `${ingresos.length} movimientos de ingreso`,
+      icono: TrendingUp,
+      color: '#15803d',
+      fondo: '#f0fdf4',
+      borde: '#bbf7d0',
+    },
+    {
+      titulo: 'Total de egresos',
+      total: totalEgresos,
+      detalle: `${egresos.length} gastos registrados`,
+      icono: TrendingDown,
+      color: '#dc2626',
+      fondo: '#fef2f2',
+      borde: '#fecaca',
+    },
+    {
+      titulo: 'Balance neto',
+      total: balanceNeto,
+      detalle: 'Ingresos menos egresos',
+      icono: Scale,
+      color: balanceNeto < 0 ? '#dc2626' : VERDE,
+      fondo: '#f0fdfa',
+      borde: '#99f6e4',
+    },
+  ];
+
   return (
-    <main className="min-h-screen bg-[#f3faf7] px-4 py-6 md:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-2xl bg-[#064332] p-6 text-white md:p-8">
-          <Link
-            href="/"
-            className="mb-5 inline-flex items-center gap-2 text-sm text-emerald-100 hover:text-white"
-          >
+    <main style={estilos.pagina}>
+      <div style={estilos.contenedor}>
+        <header style={estilos.encabezado}>
+          <Link href="/" style={estilos.volver}>
             <ArrowLeft size={18} />
             Volver al inicio
           </Link>
 
-          <div className="flex items-center gap-3">
-            <Scale size={30} />
-            <h1 className="text-3xl font-bold">
-              Balance del club
-            </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 52,
+                height: 52,
+                flexShrink: 0,
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                borderRadius: 12,
+              }}
+            >
+              <Scale size={29} />
+            </div>
+            <div>
+              <h1 style={estilos.titulo}>Balance del club</h1>
+              <p style={estilos.subtitulo}>
+                Control de ingresos, egresos y saldo del club.
+              </p>
+            </div>
           </div>
 
-          <p className="mt-2 text-emerald-50">
-            Resumen de ingresos y egresos del periodo seleccionado.
-          </p>
-
-          <p className="mt-3 text-sm text-emerald-100">
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 22,
+              padding: '9px 13px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 8,
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              color: '#ecfdf5',
+              fontSize: 13,
+            }}
+          >
+            <CalendarDays size={16} />
             {tituloRango}
-          </p>
-        </section>
+          </div>
+        </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="mb-4 flex items-center gap-2 text-slate-700">
-            <CalendarDays size={20} />
-            <h2 className="text-lg font-semibold">
+        <section style={estilos.tarjeta}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 7,
+            }}
+          >
+            <CalendarDays color={VERDE} size={22} />
+            <h2 style={{ ...estilos.tituloSeccion, margin: 0 }}>
               Filtrar por fechas
             </h2>
           </div>
 
+          <p
+            style={{
+              color: '#64748b',
+              fontSize: 14,
+              lineHeight: 1.6,
+              margin: '8px 0 22px',
+            }}
+          >
+            Selecciona el periodo que deseas consultar. Puedes indicar una
+            sola fecha o dejar ambas vacías para ver todos los movimientos.
+          </p>
+
           <form
             action="/balance"
             method="GET"
-            className="flex flex-col items-end gap-4 md:flex-row"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              gap: 16,
+            }}
           >
-            <div className="w-full flex-1">
-              <label
-                htmlFor="desde"
-                className="mb-2 block text-sm font-semibold text-slate-700"
-              >
-                Desde
+            <div style={{ flex: '1 1 190px', minWidth: 0 }}>
+              <label htmlFor="desde" style={estilos.etiqueta}>
+                Fecha desde
               </label>
               <input
                 id="desde"
                 name="desde"
                 type="date"
                 defaultValue={desde}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-800 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                style={estilos.campo}
               />
             </div>
 
-            <div className="w-full flex-1">
-              <label
-                htmlFor="hasta"
-                className="mb-2 block text-sm font-semibold text-slate-700"
-              >
-                Hasta
+            <div style={{ flex: '1 1 190px', minWidth: 0 }}>
+              <label htmlFor="hasta" style={estilos.etiqueta}>
+                Fecha hasta
               </label>
               <input
                 id="hasta"
@@ -311,121 +454,205 @@ export default async function BalancePage({
                 type="date"
                 defaultValue={hasta}
                 min={desde || undefined}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-800 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                style={estilos.campo}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-emerald-700 px-6 py-3 font-semibold text-white hover:bg-emerald-800 md:w-auto"
+              style={{
+                ...estilos.boton,
+                flex: '0 0 auto',
+                border: '1px solid #047857',
+                backgroundColor: '#047857',
+                color: '#ffffff',
+              }}
             >
               Consultar balance
             </button>
 
             <Link
               href="/balance"
-              className="w-full rounded-lg border border-slate-300 px-5 py-3 text-center font-semibold text-slate-700 hover:bg-slate-50 md:w-auto"
+              style={{
+                ...estilos.boton,
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#ffffff',
+                color: '#334155',
+              }}
             >
               Ver todo
             </Link>
           </form>
 
           {!rangoValido && (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <p
+              style={{
+                margin: '16px 0 0',
+                padding: 12,
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 8,
+                color: '#b91c1c',
+                fontSize: 14,
+              }}
+            >
               La fecha Desde no puede ser posterior a la fecha Hasta.
               Selecciona un rango válido.
             </p>
           )}
-
-          <p className="mt-3 text-sm text-slate-500">
-            Puedes seleccionar ambas fechas o solamente una.
-            Si dejas las dos vacías, se mostrarán todos los movimientos.
-          </p>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-emerald-100 border-t-4 border-t-green-600 bg-white p-6 shadow-sm">
-            <TrendingUp className="mb-4 text-green-600" size={25} />
-            <p className="text-sm text-slate-500">
-              Total de ingresos
-            </p>
-            <p className="mt-1 text-3xl font-bold text-green-600">
-              {formatoMoneda(totalIngresos)}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              {ingresos.length} movimientos de ingreso
-            </p>
-          </div>
+        <section
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 245px), 1fr))',
+            gap: 20,
+            marginBottom: 32,
+          }}
+        >
+          {tarjetasResumen.map((tarjeta) => {
+            const Icono = tarjeta.icono;
 
-          <div className="rounded-2xl border border-red-100 border-t-4 border-t-red-600 bg-white p-6 shadow-sm">
-            <TrendingDown className="mb-4 text-red-600" size={25} />
-            <p className="text-sm text-slate-500">
-              Total de egresos
-            </p>
-            <p className="mt-1 text-3xl font-bold text-red-600">
-              {formatoMoneda(totalEgresos)}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              {egresos.length} gastos registrados
-            </p>
-          </div>
+            return (
+              <div
+                key={tarjeta.titulo}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: `1px solid ${tarjeta.borde}`,
+                  borderTop: `4px solid ${tarjeta.color}`,
+                  borderRadius: 14,
+                  padding: '23px 24px',
+                  boxShadow: '0 4px 12px rgba(15,23,42,0.04)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 22,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: '#64748b',
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {tarjeta.titulo}
+                  </span>
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 42,
+                      height: 42,
+                      backgroundColor: tarjeta.fondo,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Icono size={23} color={tarjeta.color} />
+                  </span>
+                </div>
 
-          <div className="rounded-2xl border border-emerald-100 border-t-4 border-t-emerald-700 bg-white p-6 shadow-sm">
-            <Scale className="mb-4 text-emerald-700" size={25} />
-            <p className="text-sm text-slate-500">
-              Balance neto
-            </p>
+                <p
+                  style={{
+                    color: tarjeta.color,
+                    fontSize: 'clamp(23px, 2.5vw, 30px)',
+                    fontWeight: 800,
+                    margin: '0 0 10px',
+                    letterSpacing: '-0.7px',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {formatoMoneda(tarjeta.total)}
+                </p>
+
+                <p
+                  style={{
+                    color: '#94a3b8',
+                    fontSize: 13,
+                    margin: 0,
+                  }}
+                >
+                  {tarjeta.detalle}
+                </p>
+              </div>
+            );
+          })}
+        </section>
+
+        <section style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={estilos.tituloSeccion}>Detalle de ingresos</h2>
             <p
-              className={`mt-1 text-3xl font-bold ${
-                balanceNeto < 0 ? 'text-red-600' : 'text-emerald-700'
-              }`}
+              style={{
+                color: '#64748b',
+                fontSize: 14,
+                lineHeight: 1.6,
+                margin: 0,
+              }}
             >
-              {formatoMoneda(balanceNeto)}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Ingresos menos egresos
-            </p>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-2xl font-bold text-[#07533f]">
-              1. Detalle de ingresos
-            </h2>
-            <p className="mt-2 text-slate-500">
-              Solo se incluyen pagos aprobados. Las cuotas por partido
-              están agrupadas por día.
+              Pagos aprobados. Las cuotas por partido se agrupan por fecha
+              y se identifican como VARIOS.
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="bg-emerald-50 text-slate-800">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Fecha</th>
-                  <th className="px-4 py-3 font-semibold">Jugador</th>
-                  <th className="px-4 py-3 font-semibold">Concepto</th>
-                  <th className="px-4 py-3 text-right font-semibold">Importe</th>
+          <div style={estilos.tablaContenedor}>
+            <table style={estilos.tabla}>
+              <thead>
+                <tr style={{ backgroundColor: '#e8f5ee', color: VERDE }}>
+                  {['Fecha', 'Jugador', 'Concepto', 'Importe'].map((texto, i) => (
+                    <th
+                      key={texto}
+                      style={{
+                        padding: '15px 18px',
+                        fontWeight: 750,
+                        fontSize: 13,
+                        textAlign: i === 3 ? 'right' : 'left',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {texto}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody>
-                {ingresos.map((ingreso) => (
+                {ingresos.map((ingreso, indice) => (
                   <tr
                     key={ingreso.clave}
-                    className="border-t border-slate-200 text-slate-800"
+                    style={{
+                      backgroundColor: indice % 2 === 0 ? '#ffffff' : '#f8fafc',
+                    }}
                   >
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td style={{ ...estilos.celda, whiteSpace: 'nowrap' }}>
                       {formatoFecha(ingreso.fecha)}
                     </td>
-                    <td className="px-4 py-3 font-medium">
+                    <td
+                      style={{
+                        ...estilos.celda,
+                        fontWeight: 650,
+                        color: ingreso.jugador === 'VARIOS' ? VERDE : '#334155',
+                      }}
+                    >
                       {ingreso.jugador}
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={estilos.celda}>
                       {ingreso.concepto}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-green-700">
+                    <td
+                      style={{
+                        ...estilos.celda,
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 750,
+                        color: '#15803d',
+                      }}
+                    >
                       {formatoMoneda(ingreso.importe)}
                     </td>
                   </tr>
@@ -435,7 +662,11 @@ export default async function BalancePage({
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-8 text-center text-slate-500"
+                      style={{
+                        padding: '38px 16px',
+                        textAlign: 'center',
+                        color: '#64748b',
+                      }}
                     >
                       No hay ingresos aprobados para este periodo.
                     </td>
@@ -443,15 +674,29 @@ export default async function BalancePage({
                 )}
               </tbody>
 
-              <tfoot className="bg-green-50">
-                <tr>
+              <tfoot>
+                <tr style={{ backgroundColor: '#f0fdf4' }}>
                   <td
                     colSpan={3}
-                    className="px-4 py-4 font-bold text-slate-800"
+                    style={{
+                      padding: '17px 18px',
+                      fontWeight: 800,
+                      color: '#166534',
+                      borderTop: '1px solid #bbf7d0',
+                    }}
                   >
                     TOTAL DE INGRESOS
                   </td>
-                  <td className="px-4 py-4 text-right font-bold text-green-700">
+                  <td
+                    style={{
+                      padding: '17px 18px',
+                      textAlign: 'right',
+                      fontWeight: 800,
+                      color: '#15803d',
+                      whiteSpace: 'nowrap',
+                      borderTop: '1px solid #bbf7d0',
+                    }}
+                  >
                     {formatoMoneda(totalIngresos)}
                   </td>
                 </tr>
@@ -460,43 +705,68 @@ export default async function BalancePage({
           </div>
         </section>
 
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-2xl font-bold text-[#07533f]">
-              2. Detalle de egresos
-            </h2>
-            <p className="mt-2 text-slate-500">
+        <section style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={estilos.tituloSeccion}>Detalle de egresos</h2>
+            <p
+              style={{
+                color: '#64748b',
+                fontSize: 14,
+                lineHeight: 1.6,
+                margin: 0,
+              }}
+            >
               Gastos registrados dentro del periodo seleccionado.
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="bg-red-50 text-slate-800">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Fecha</th>
-                  <th className="px-4 py-3 font-semibold">Concepto</th>
-                  <th className="px-4 py-3 font-semibold">Responsable</th>
-                  <th className="px-4 py-3 text-right font-semibold">Importe</th>
+          <div style={estilos.tablaContenedor}>
+            <table style={estilos.tabla}>
+              <thead>
+                <tr style={{ backgroundColor: '#fff0f0', color: '#991b1b' }}>
+                  {['Fecha', 'Concepto', 'Responsable', 'Importe'].map((texto, i) => (
+                    <th
+                      key={texto}
+                      style={{
+                        padding: '15px 18px',
+                        fontWeight: 750,
+                        fontSize: 13,
+                        textAlign: i === 3 ? 'right' : 'left',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {texto}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody>
-                {egresos.map((egreso) => (
+                {egresos.map((egreso, indice) => (
                   <tr
                     key={egreso.id}
-                    className="border-t border-slate-200 text-slate-800"
+                    style={{
+                      backgroundColor: indice % 2 === 0 ? '#ffffff' : '#f8fafc',
+                    }}
                   >
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td style={{ ...estilos.celda, whiteSpace: 'nowrap' }}>
                       {formatoFecha(egreso.fecha)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={estilos.celda}>
                       {egreso.tipoEgreso.descripcion}
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={estilos.celda}>
                       {egreso.responsableEgreso}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
+                    <td
+                      style={{
+                        ...estilos.celda,
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 750,
+                        color: '#dc2626',
+                      }}
+                    >
                       {formatoMoneda(Number(egreso.monto))}
                     </td>
                   </tr>
@@ -506,7 +776,11 @@ export default async function BalancePage({
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-8 text-center text-slate-500"
+                      style={{
+                        padding: '38px 16px',
+                        textAlign: 'center',
+                        color: '#64748b',
+                      }}
                     >
                       No hay egresos registrados para este periodo.
                     </td>
@@ -514,15 +788,29 @@ export default async function BalancePage({
                 )}
               </tbody>
 
-              <tfoot className="bg-red-50">
-                <tr>
+              <tfoot>
+                <tr style={{ backgroundColor: '#fef2f2' }}>
                   <td
                     colSpan={3}
-                    className="px-4 py-4 font-bold text-slate-800"
+                    style={{
+                      padding: '17px 18px',
+                      fontWeight: 800,
+                      color: '#991b1b',
+                      borderTop: '1px solid #fecaca',
+                    }}
                   >
                     TOTAL DE EGRESOS
                   </td>
-                  <td className="px-4 py-4 text-right font-bold text-red-600">
+                  <td
+                    style={{
+                      padding: '17px 18px',
+                      textAlign: 'right',
+                      fontWeight: 800,
+                      color: '#dc2626',
+                      whiteSpace: 'nowrap',
+                      borderTop: '1px solid #fecaca',
+                    }}
+                  >
                     {formatoMoneda(totalEgresos)}
                   </td>
                 </tr>
@@ -531,26 +819,81 @@ export default async function BalancePage({
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <section
+          style={{
+            ...estilos.tarjeta,
+            borderLeft: '5px solid #0f766e',
+            marginBottom: 0,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 20,
+            }}
+          >
             <div>
-              <p className="text-sm text-slate-500">
-                Balance del periodo seleccionado
+              <p
+                style={{
+                  margin: '0 0 8px',
+                  color: '#64748b',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                Resultado del periodo
               </p>
-              <p className="text-xl font-bold text-slate-800">
-                Total de ingresos − Total de egresos
+              <h2
+                style={{
+                  margin: 0,
+                  color: '#1e293b',
+                  fontSize: 20,
+                  fontWeight: 800,
+                }}
+              >
+                Balance neto
+              </h2>
+              <p
+                style={{
+                  margin: '7px 0 0',
+                  color: '#64748b',
+                  fontSize: 13,
+                }}
+              >
+                Ingresos menos egresos
               </p>
             </div>
 
             <p
-              className={`text-2xl font-bold ${
-                balanceNeto < 0 ? 'text-red-600' : 'text-emerald-700'
-              }`}
+              style={{
+                margin: 0,
+                color: balanceNeto < 0 ? '#dc2626' : VERDE,
+                fontSize: 'clamp(27px, 4vw, 36px)',
+                fontWeight: 850,
+                letterSpacing: '-0.8px',
+                overflowWrap: 'anywhere',
+              }}
             >
               {formatoMoneda(balanceNeto)}
             </p>
           </div>
         </section>
+
+        <footer
+          style={{
+            textAlign: 'center',
+            color: '#94a3b8',
+            fontSize: 12,
+            paddingTop: 24,
+          }}
+        >
+          Peloteros San Antonio FC · Balance financiero
+        </footer>
       </div>
     </main>
   );
