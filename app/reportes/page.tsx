@@ -1,4 +1,3 @@
-```tsx
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -7,7 +6,9 @@ import ReportsTable from './table';
 export const dynamic = 'force-dynamic';
 
 export default async function Reports() {
-  if (!(await getSession())) {
+  const session = await getSession();
+
+  if (!session) {
     redirect('/admin/login');
   }
 
@@ -23,52 +24,38 @@ export default async function Reports() {
 
   const stats = {
     total: payments.length,
-    pending: payments.filter(
-      (payment) => payment.status === 'PENDING'
-    ).length,
-    approved: payments.filter(
-      (payment) => payment.status === 'APPROVED'
-    ).length,
-    rejected: payments.filter(
-      (payment) => payment.status === 'REJECTED'
-    ).length,
+    pending: payments.filter((p) => p.status === 'PENDING').length,
+    approved: payments.filter((p) => p.status === 'APPROVED').length,
+    rejected: payments.filter((p) => p.status === 'REJECTED').length,
   };
 
-  const tablePayments = payments.map((payment) => ({
-    id: payment.id,
-    player: payment.player.fullName,
-    date: payment.paymentDate.toISOString(),
-    pichangaDate:
-      payment.pichangaDate?.toISOString() ?? null,
-    paymentType:
-      payment.paymentType?.description ?? 'No especificado',
-    amount:
-      payment.amount === null
-        ? null
-        : Number(payment.amount),
-    status: payment.status,
-    voucher: payment.voucherUrl,
-    file: payment.voucherFileName,
-    created: payment.createdAt.toISOString(),
+  const tablePayments = payments.map((p) => ({
+    id: p.id,
+    player: p.player.fullName,
+    date: p.paymentDate.toISOString(),
+    pichangaDate: p.pichangaDate
+      ? p.pichangaDate.toISOString()
+      : null,
+    paymentType: p.paymentType?.description ?? 'No especificado',
+    amount: p.amount === null ? null : Number(p.amount),
+    status: p.status,
+    voucher: p.voucherUrl,
+    file: p.voucherFileName,
+    created: p.createdAt.toISOString(),
   }));
 
   return (
-    <main
-      className="container"
-      style={{ padding: '48px 0' }}
-    >
+    <main className="container" style={{ padding: '48px 0' }}>
       <h1>Aprobar pagos</h1>
 
       <p style={{ color: '#64748b' }}>
-        Revisa los comprobantes, consulta el monto y la fecha
-        de pichanga, y aprueba o rechaza los pagos registrados.
+        Revisa los comprobantes, los montos y las fechas de pichanga.
       </p>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(170px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
           gap: 14,
           margin: '24px 0',
         }}
@@ -82,19 +69,9 @@ export default async function Reports() {
           };
 
           return (
-            <div
-              className="card"
-              style={{ padding: 18 }}
-              key={key}
-            >
+            <div className="card" style={{ padding: 18 }} key={key}>
               <small>{labels[key]}</small>
-
-              <div
-                style={{
-                  fontSize: 30,
-                  fontWeight: 900,
-                }}
-              >
+              <div style={{ fontSize: 30, fontWeight: 900 }}>
                 {value}
               </div>
             </div>
@@ -106,4 +83,3 @@ export default async function Reports() {
     </main>
   );
 }
-```
