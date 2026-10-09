@@ -30,8 +30,7 @@ export default function ReportsTable({
     () =>
       payments.filter((p) => {
         const matchesPlayer =
-          !q ||
-          p.player.toLowerCase().includes(q.toLowerCase());
+          !q || p.player.toLowerCase().includes(q.toLowerCase());
 
         const matchesStatus = !status || p.status === status;
 
@@ -40,11 +39,7 @@ export default function ReportsTable({
           (p.pichangaDate !== null &&
             p.pichangaDate.slice(0, 10) === pichangaDate);
 
-        return (
-          matchesPlayer &&
-          matchesStatus &&
-          matchesPichangaDate
-        );
+        return matchesPlayer && matchesStatus && matchesPichangaDate;
       }),
     [payments, q, status, pichangaDate]
   );
@@ -336,18 +331,38 @@ export default function ReportsTable({
               </td>
 
               <td style={tdStyle}>
-                <a
-                  href={p.voucher}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: '#047857',
-                    fontWeight: 700,
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Ver voucher
-                </a>
+                {p.status === 'APPROVED' ? (
+                  <span
+                    aria-disabled="true"
+                    title="El voucher no está disponible para pagos aprobados"
+                    style={{
+                      color: '#94a3b8',
+                      cursor: 'not-allowed',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Voucher eliminado
+                  </span>
+                ) : p.voucher ? (
+                  <a
+                    href={p.voucher}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#047857',
+                      fontWeight: 700,
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Ver voucher
+                  </a>
+                ) : (
+                  <span style={{ color: '#94a3b8' }}>
+                    No disponible
+                  </span>
+                )}
 
                 {p.status === 'PENDING' && (
                   <div
