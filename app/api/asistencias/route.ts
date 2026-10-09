@@ -29,7 +29,7 @@ function getDateRange(fecha: string) {
  * Devuelve los jugadores que tienen una cuota por partido
  * aprobada para la fecha indicada.
  *
- * Se ignoran las donaciones y todos los demás tipos de pago.
+ * Las donaciones y los demás conceptos se ignoran.
  * La fecha se compara por día, sin exigir una hora exacta.
  */
 async function obtenerJugadoresPagados(fecha: string) {
@@ -111,8 +111,8 @@ export async function GET(request: Request) {
       ])
     );
 
-    // Incluye a todos los jugadores activos, incluso si todavía
-    // no se ha guardado su asistencia para esa fecha.
+    // Se muestran todos los jugadores activos, pero esto NO significa
+    // que todos deban tener un registro de asistencia en la base de datos.
     const resultado = players.map((player) => {
       const asistencia = asistenciaPorJugador.get(player.id);
 
@@ -122,8 +122,7 @@ export async function GET(request: Request) {
         fechaPichanga: `${fecha}T00:00:00.000Z`,
         asistio: asistencia?.asistio ?? false,
 
-        // El pago solo cuenta si es la cuota por partido,
-        // está aprobado y corresponde a esta fecha.
+        // El estado de pago depende del pago aprobado correspondiente.
         estadoPago: jugadoresPagados.has(player.id)
           ? 'PAGADO'
           : 'POR_PAGAR',
@@ -204,17 +203,32 @@ export async function POST(request: Request) {
 
     const fechaPichanga = new Date(`${fecha}T00:00:00.000Z`);
 
-    const [players, jugadoresPagados] = await Promise.all([
-      prisma.player.findMany({
-        where: {
-          id: { in: playerIds },
-          status: 'ACTIVE',
-        },
-        select: { id: true },
-      }),
+    // Solo validamos los jugadores que el cliente envía.
+    // No se crean registros automáticamente para los ausentes.
+    const [players, asistenciasExistentes, jugadoresPagados] =
+      await Promise.all([
+        prisma.player.findMany({
+          where: {
+            id: { in: playerIds },
+            status: 'ACTIVE',
+          },
+          select: { id: true },
+        }),
 
-      obtenerJugadoresPagados(fecha),
-    ]);
+        prisma.asistencia.findMany({
+          where: {
+            fechaPichanga,
+            playerId: { in: playerIds },
+          },
+          select: {
+            id: true,
+            playerId: true,
+            asistio: true,
+          },
+        }),
+
+        obtenerJugadoresPagados(fecha),
+      ]);
 
     if (players.length !== playerIds.length) {
       return NextResponse.json(
@@ -226,42 +240,76 @@ export async function POST(request: Request) {
       );
     }
 
-    await prisma.$transaction(
-      asistencias.map(
-        (item: { playerId: string; asistio: boolean }) => {
-          const estadoPago = jugadoresPagados.has(item.playerId)
-            ? 'PAGADO'
-            : 'POR_PAGAR';
+    const jugadoresValidos = new Set(players.map((p) => p.id));
 
-          return prisma.asistencia.upsert({
-            where: {
-              playerId_fechaPichanga: {
-                playerId: item.playerId,
-                fechaPichanga,
+    const asistenciaExistentePorJugador = new Map(
+      asistenciasExistentes.map((asistencia) => [
+        asistencia.playerId,
+        asistencia,
+      ])
+    );
+
+    // Reglas:
+    // 1. Marcado y sin registro: crear.
+    // 2. Marcado y con registro: actualizar.
+    // 3. Desmarcado y con registro previo: actualizar asistio=false.
+    // 4. Desmarcado y sin registro previo: no guardar nada.
+    const operaciones = asistencias
+      .filter((item: { playerId: string; asistio: boolean }) =>
+        jugadoresValidos.has(item.playerId)
+      )
+      .flatMap((item: { playerId: string; asistio: boolean }) => {
+        const existente = asistenciaExistentePorJugador.get(
+          item.playerId
+        );
+
+        // Si nunca existió un registro y sigue desmarcado,
+        // no se crea una fila innecesaria.
+        if (!existente && !item.asistio) {
+          return [];
+        }
+
+        const estadoPago = jugadoresPagados.has(item.playerId)
+          ? 'PAGADO'
+          : 'POR_PAGAR';
+
+        if (existente) {
+          return [
+            prisma.asistencia.update({
+              where: { id: existente.id },
+              data: {
+                asistio: item.asistio,
+                estadoPago,
+                updatedAt: new Date(),
               },
-            },
-            create: {
+            }),
+          ];
+        }
+
+        return [
+          prisma.asistencia.create({
+            data: {
               playerId: item.playerId,
               fechaPichanga,
-              asistio: item.asistio,
+              asistio: true,
               estadoPago,
             },
-            update: {
-              asistio: item.asistio,
-              estadoPago,
-              updatedAt: new Date(),
-            },
-          });
-        }
-      )
-    );
+          }),
+        ];
+      });
+
+    await prisma.$transaction(operaciones);
+
+    const total = asistencias.filter(
+      (item: { playerId: string; asistio: boolean }) =>
+        item.asistio
+    ).length;
 
     return NextResponse.json({
       message: 'Asistencia guardada correctamente.',
       fecha,
-      total: asistencias.filter(
-        (item: { asistio: boolean }) => item.asistio
-      ).length,
+      total,
+      registrosProcesados: operaciones.length,
     });
   } catch (error) {
     console.error('ERROR GUARDANDO ASISTENCIAS:', error);
