@@ -58,7 +58,7 @@ model Payment {
   paymentTypeId   String?
   pichangaDate    DateTime?     @db.Timestamptz(6)
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  updatedAt      DateTime      @updatedAt
 
   player          Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
   paymentType     PaymentType?  @relation(fields: [paymentTypeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -76,7 +76,6 @@ model Admin {
   updatedAt    DateTime @updatedAt
 }
 
-
 model TipoEgreso {
   idTipEgreso String   @id @default(cuid())
   descripcion String
@@ -87,25 +86,19 @@ model TipoEgreso {
 }
 
 model Egreso {
-  id               String     @id @default(cuid())
-  idTipEgreso      String
-  fecha            DateTime   @db.Timestamptz(6)
-  monto            Decimal    @db.Decimal(12, 2)
+  id                String     @id @default(cuid())
+  idTipEgreso       String
+  fecha             DateTime   @db.Timestamptz(6)
+  monto             Decimal    @db.Decimal(12, 2)
   responsableEgreso String
-  voucher          String?
-  voucherUrl       String?
-  voucherFileName  String?
-  voucherFileType  String?
+  voucher           String?
+  voucherUrl        String?
+  voucherFileName   String?
+  voucherFileType   String?
 
-  tipoEgreso TipoEgreso @relation(
-    fields: [idTipEgreso],
-    references: [idTipEgreso],
-    onUpdate: Cascade,
-    onDelete: Restrict
-  )
+  tipoEgreso TipoEgreso @relation(fields: [idTipEgreso], references: [idTipEgreso], onUpdate: Cascade, onDelete: Restrict)
 
   @@index([idTipEgreso])
   @@index([fecha])
   @@map("Egreso")
 }
-
