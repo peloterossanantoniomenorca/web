@@ -11,6 +11,16 @@ export default async function AdminPage() {
     redirect('/admin/login');
   }
 
+  const estiloTarjeta = {
+    display: 'block',
+    padding: 24,
+    border: '1px solid #e5e7eb',
+    borderRadius: 12,
+    textDecoration: 'none',
+    color: '#111827',
+    background: '#fff',
+  } as const;
+
   return (
     <main
       className="container"
@@ -63,18 +73,8 @@ export default async function AdminPage() {
           gap: 20,
         }}
       >
-        <Link
-          href="/admin/peloteros"
-          style={{
-            display: 'block',
-            padding: 24,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-            textDecoration: 'none',
-            color: '#111827',
-            background: '#fff',
-          }}
-        >
+        {/* Registro de peloteros */}
+        <Link href="/admin/peloteros" style={estiloTarjeta}>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             Registro de peloteros
           </h2>
@@ -84,18 +84,8 @@ export default async function AdminPage() {
           </p>
         </Link>
 
-        <Link
-          href="/reportes"
-          style={{
-            display: 'block',
-            padding: 24,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-            textDecoration: 'none',
-            color: '#111827',
-            background: '#fff',
-          }}
-        >
+        {/* Reportes generales */}
+        <Link href="/reportes" style={estiloTarjeta}>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             Reportes
           </h2>
@@ -105,14 +95,12 @@ export default async function AdminPage() {
           </p>
         </Link>
 
+        {/* Registro de egresos */}
         <Link
           href="/admin/egresos"
           style={{
-            display: 'block',
-            padding: 24,
-            border: '1px solid #bbf7d0',
-            borderRadius: 12,
-            textDecoration: 'none',
+            ...estiloTarjeta,
+            borderColor: '#bbf7d0',
             color: '#166534',
             background: '#f0fdf4',
           }}
@@ -126,14 +114,12 @@ export default async function AdminPage() {
           </p>
         </Link>
 
+        {/* Reporte de egresos */}
         <Link
           href="/admin/reporte-egresos"
           style={{
-            display: 'block',
-            padding: 24,
-            border: '1px solid #bfdbfe',
-            borderRadius: 12,
-            textDecoration: 'none',
+            ...estiloTarjeta,
+            borderColor: '#bfdbfe',
             color: '#1d4ed8',
             background: '#eff6ff',
           }}
@@ -144,6 +130,44 @@ export default async function AdminPage() {
 
           <p style={{ marginTop: 8, color: '#1d4ed8' }}>
             Consulta los gastos por año, mes y tipo de egreso.
+          </p>
+        </Link>
+
+        {/* Registro de tipos de ingresos */}
+        <Link
+          href="/admin/tipos-ingresos"
+          style={{
+            ...estiloTarjeta,
+            borderColor: '#bbf7d0',
+            color: '#166534',
+            background: '#f0fdf4',
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Registro de tipos de ingresos
+          </h2>
+
+          <p style={{ marginTop: 8, color: '#166534' }}>
+            Administra los conceptos de ingreso y sus montos.
+          </p>
+        </Link>
+
+        {/* Registro de tipos de egresos */}
+        <Link
+          href="/admin/tipos-egresos"
+          style={{
+            ...estiloTarjeta,
+            borderColor: '#fed7aa',
+            color: '#9a3412',
+            background: '#fff7ed',
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            Registro de tipos de egresos
+          </h2>
+
+          <p style={{ marginTop: 8, color: '#9a3412' }}>
+            Administra las categorías de gastos del club.
           </p>
         </Link>
       </div>
