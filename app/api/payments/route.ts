@@ -11,6 +11,8 @@ const allowedTypes = [
   'application/pdf',
 ];
 
+type PaymentMethod = 'YAPE' | 'EFECTIVO';
+
 function parseDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
@@ -44,18 +46,32 @@ export async function POST(req: Request) {
     const paymentTypeId = String(form.get('paymentTypeId') || '');
     const paymentDateValue = String(form.get('paymentDate') || '');
     const pichangaDateValue = String(form.get('pichangaDate') || '');
-    const file = form.get('voucher');
+
+    const methodValue = String(form.get('paymentMethod') || 'YAPE')
+      .trim()
+      .toUpperCase();
+
+    if (methodValue !== 'YAPE' && methodValue !== 'EFECTIVO') {
+      return NextResponse.json(
+        { error: 'Selecciona un método de pago válido.' },
+        { status: 400 }
+      );
+    }
+
+    const paymentMethod: PaymentMethod = methodValue;
+
+    const fileValue = form.get('voucher');
+
+    // Un archivo vacío se considera como si no se hubiera adjuntado.
+    const file =
+      fileValue instanceof File && fileValue.size > 0
+        ? fileValue
+        : null;
 
     const paymentDate = parseDate(paymentDateValue);
     const pichangaDate = parseDate(pichangaDateValue);
 
-    if (
-      !playerId ||
-      !paymentTypeId ||
-      !paymentDate ||
-      !pichangaDate ||
-      !(file instanceof File)
-    ) {
+    if (!playerId || !paymentTypeId || !paymentDate || !pichangaDate) {
       return NextResponse.json(
         { error: 'Completa todos los campos obligatorios.' },
         { status: 400 }
@@ -72,23 +88,29 @@ export async function POST(req: Request) {
       );
     }
 
-    if (
-      !allowedTypes.includes(file.type) ||
-      file.size > 5 * 1024 * 1024
-    ) {
+    // Solo los pagos por Yape necesitan voucher.
+    if (paymentMethod === 'YAPE' && !file) {
       return NextResponse.json(
-        {
-          error: 'Archivo no permitido. Usa JPG, PNG o PDF de hasta 5 MB.',
-        },
+        { error: 'Adjunta el voucher del pago por Yape.' },
         { status: 400 }
       );
     }
 
-    if (file.size === 0) {
-      return NextResponse.json(
-        { error: 'El archivo seleccionado está vacío.' },
-        { status: 400 }
-      );
+    // Validar el archivo solamente si se adjuntó uno.
+    if (file) {
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: 'El voucher debe ser JPG, PNG o PDF.' },
+          { status: 400 }
+        );
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'El voucher no puede superar los 5 MB.' },
+          { status: 400 }
+        );
+      }
     }
 
     const [player, paymentType] = await Promise.all([
@@ -144,17 +166,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // Formato: TIPO DE PAGO - NOMBRE DEL PELOTERO - FECHA.extensión
-    const desiredName = [
-      paymentType.description,
-      player.fullName,
-      formatDateForFile(paymentDate),
-    ].join(' - ');
+    // Los datos del voucher comienzan vacíos.
+    let voucherUrl: string | null = null;
+    let voucherFileName: string | null = null;
+    let voucherFileType: string | null = null;
 
-    // Guardar el voucher en Google Drive con el nombre personalizado.
-    const stored = await uploadVoucher(file, desiredName);
+    // Solo subimos archivos cuando realmente hay un voucher.
+    if (paymentMethod === 'YAPE' && file) {
+      const desiredName = [
+        paymentType.description,
+        player.fullName,
+        formatDateForFile(paymentDate),
+      ].join(' - ');
 
-    // Registrar el pago en Supabase mediante Prisma.
+      const stored = await uploadVoucher(file, desiredName);
+
+      voucherUrl = stored.url;
+      voucherFileName = stored.fileName;
+      voucherFileType = file.type;
+    }
+
     const payment = await prisma.payment.create({
       data: {
         playerId,
@@ -162,9 +193,10 @@ export async function POST(req: Request) {
         paymentDate,
         pichangaDate,
         amount: paymentType.amount,
-        voucherUrl: stored.url,
-        voucherFileName: stored.fileName,
-        voucherFileType: file.type,
+        paymentMethod,
+        voucherUrl,
+        voucherFileName,
+        voucherFileType,
         status: 'PENDING',
       },
     });
@@ -178,7 +210,8 @@ export async function POST(req: Request) {
           payment.amount?.toString() ?? paymentType.amount.toString(),
         paymentDate: payment.paymentDate.toISOString(),
         pichangaDate: payment.pichangaDate?.toISOString() ?? null,
-        voucherFileName: stored.fileName,
+        paymentMethod: payment.paymentMethod,
+        voucherFileName: payment.voucherFileName,
         status: payment.status,
         message: 'Pago registrado correctamente.',
       },
