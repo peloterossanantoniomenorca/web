@@ -31,6 +31,7 @@ model Player {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   payments     Payment[]
+  asistencias Asistencia[]
 
   @@index([status])
   @@index([fullName])
