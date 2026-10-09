@@ -7,59 +7,47 @@ import {
   CheckCircle,
   XCircle,
   ArrowRight,
+  FileText,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const [
-    players,
-    payments,
-    approved,
-    rejected,
-    pending,
-    latest,
-  ] = await Promise.all([
-    prisma.player.count({
-      where: {
-        status: 'ACTIVE',
-      },
-    }),
+  const [players, payments, approved, rejected, pending, latest] =
+    await Promise.all([
+      prisma.player.count({
+        where: { status: 'ACTIVE' },
+      }),
+      prisma.payment.count(),
+      prisma.payment.count({
+        where: { status: 'APPROVED' },
+      }),
+      prisma.payment.count({
+        where: { status: 'REJECTED' },
+      }),
+      prisma.payment.count({
+        where: { status: 'PENDING' },
+      }),
+      prisma.payment.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { player: true },
+      }),
+    ]);
 
-    prisma.payment.count(),
-
-    prisma.payment.count({
-      where: {
-        status: 'APPROVED',
-      },
-    }),
-
-    prisma.payment.count({
-      where: {
-        status: 'REJECTED',
-      },
-    }),
-
-    prisma.payment.count({
-      where: {
-        status: 'PENDING',
-      },
-    }),
-
-    prisma.payment.findMany({
-      take: 5,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        player: true,
-      },
-    }),
-  ]);
+  const buttonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '12px 17px',
+    borderRadius: 12,
+    textDecoration: 'none',
+    fontWeight: 800,
+  } as const;
 
   return (
     <main>
-      {/* HERO */}
       <section
         className="hero"
         style={{
@@ -72,12 +60,11 @@ export default async function Home() {
           style={{
             padding: '78px 0 70px',
             display: 'grid',
-            gridTemplateColumns: '1.2fr .8fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
             gap: 30,
             alignItems: 'center',
           }}
         >
-          {/* TEXTO */}
           <div>
             <span
               className="badge"
@@ -92,7 +79,7 @@ export default async function Home() {
 
             <h1
               style={{
-                fontSize: 'clamp(40px,6vw,68px)',
+                fontSize: 'clamp(40px, 6vw, 68px)',
                 lineHeight: 1,
                 margin: '18px 0',
                 color: '#ffffff',
@@ -100,12 +87,7 @@ export default async function Home() {
             >
               Peloteros
               <br />
-
-              <span
-                style={{
-                  color: '#bef264',
-                }}
-              >
+              <span style={{ color: '#bef264' }}>
                 San Antonio FC
               </span>
             </h1>
@@ -122,7 +104,6 @@ export default async function Home() {
               cualquier dispositivo.
             </p>
 
-            {/* BOTONES */}
             <div
               style={{
                 display: 'flex',
@@ -139,8 +120,7 @@ export default async function Home() {
                   color: '#163300',
                   border: '1px solid #bef264',
                   fontWeight: 800,
-                  boxShadow:
-                    '0 10px 25px rgba(0,0,0,0.18)',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.18)',
                 }}
               >
                 Ver Peloteros
@@ -159,10 +139,34 @@ export default async function Home() {
               >
                 Registrar Pago
               </Link>
+
+              <Link
+                href="/reporte-cuotas"
+                className="btn"
+                style={{
+                  background: '#ffffff',
+                  color: '#075e46',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 800,
+                }}
+              >
+                <FileText size={17} />
+                Reporte de cuotas
+                <ArrowRight size={17} />
+              </Link>
             </div>
+
+            <p
+              style={{
+                color: '#d1fae5',
+                fontSize: 13,
+                marginTop: 13,
+              }}
+            >
+              Consulta pública de cuotas por partido y fechas pendientes.
+            </p>
           </div>
 
-          {/* ILUSTRACIÓN DE FÚTBOL */}
           <div
             className="card"
             style={{
@@ -182,7 +186,6 @@ export default async function Home() {
                 justifyContent: 'center',
               }}
             >
-              {/* Círculo decorativo */}
               <div
                 style={{
                   position: 'absolute',
@@ -194,7 +197,6 @@ export default async function Home() {
                 }}
               />
 
-              {/* Ilustración SVG */}
               <svg
                 width="230"
                 height="210"
@@ -208,22 +210,18 @@ export default async function Home() {
                     'drop-shadow(0 18px 18px rgba(6,78,59,0.20))',
                 }}
               >
-                {/* Césped / campo */}
                 <path
                   d="M25 175C55 151 175 151 205 175"
                   stroke="#16A34A"
                   strokeWidth="5"
                   strokeLinecap="round"
                 />
-
                 <path
                   d="M45 177C75 161 155 161 185 177"
                   stroke="#86EFAC"
                   strokeWidth="3"
                   strokeLinecap="round"
                 />
-
-                {/* Balón */}
                 <circle
                   cx="115"
                   cy="95"
@@ -232,49 +230,40 @@ export default async function Home() {
                   stroke="#166534"
                   strokeWidth="5"
                 />
-
-                {/* Paneles del balón */}
                 <path
                   d="M115 43L132 55L126 75L104 75L98 55L115 43Z"
                   fill="#166534"
                 />
-
                 <path
                   d="M98 55L79 66L84 88L104 75"
                   stroke="#166534"
                   strokeWidth="5"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="M132 55L151 66L146 88L126 75"
                   stroke="#166534"
                   strokeWidth="5"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="M84 88L67 104L78 124L101 118L104 94"
                   stroke="#166534"
                   strokeWidth="5"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="M146 88L163 104L152 124L129 118L126 94"
                   stroke="#166534"
                   strokeWidth="5"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="M101 118L115 143L129 118"
                   stroke="#166534"
                   strokeWidth="5"
                   strokeLinejoin="round"
                 />
-
-                {/* Detalles verdes */}
                 <circle
                   cx="115"
                   cy="95"
@@ -284,13 +273,10 @@ export default async function Home() {
                   strokeDasharray="5 8"
                   opacity="0.45"
                 />
-
-                {/* Estrellas decorativas */}
                 <path
                   d="M39 55L42 62L49 65L42 68L39 75L36 68L29 65L36 62L39 55Z"
                   fill="#84CC16"
                 />
-
                 <path
                   d="M188 76L191 83L198 86L191 89L188 96L185 89L178 86L185 83L188 76Z"
                   fill="#84CC16"
@@ -322,12 +308,9 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ESTADÍSTICAS */}
       <section
         className="container"
-        style={{
-          padding: '48px 0',
-        }}
+        style={{ padding: '48px 0' }}
       >
         <div
           style={{
@@ -337,189 +320,100 @@ export default async function Home() {
             gap: 16,
           }}
         >
-          {/* PELOTEROS */}
-          <div
-            className="card"
-            style={{
-              padding: 24,
-            }}
-          >
-            <Users
-              size={25}
-              style={{
-                color: '#087f5b',
-              }}
-            />
-
+          {[
+            {
+              label: 'Peloteros activos',
+              value: players,
+              Icon: Users,
+              color: '#087f5b',
+            },
+            {
+              label: 'Pagos registrados',
+              value: payments,
+              Icon: CreditCard,
+              color: '#087f5b',
+            },
+            {
+              label: 'Pagos aprobados',
+              value: approved,
+              Icon: CheckCircle,
+              color: '#16a34a',
+            },
+            {
+              label: 'Pagos rechazados',
+              value: rejected,
+              Icon: XCircle,
+              color: '#dc2626',
+            },
+            {
+              label: 'Pagos pendientes',
+              value: pending,
+              Icon: Clock3,
+              color: '#d97706',
+            },
+          ].map(({ label, value, Icon, color }) => (
             <div
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginTop: 12,
-                color: '#064e3b',
-              }}
+              className="card"
+              style={{ padding: 24 }}
+              key={label}
             >
-              {players}
+              <Icon size={25} style={{ color }} />
+              <div
+                style={{
+                  fontSize: 34,
+                  fontWeight: 900,
+                  marginTop: 12,
+                  color: '#064e3b',
+                }}
+              >
+                {value}
+              </div>
+              <div style={{ color: '#64748b' }}>{label}</div>
             </div>
-
-            <div
-              style={{
-                color: '#64748b',
-              }}
-            >
-              Peloteros activos
-            </div>
-          </div>
-
-          {/* PAGOS REGISTRADOS */}
-          <div
-            className="card"
-            style={{
-              padding: 24,
-            }}
-          >
-            <CreditCard
-              size={25}
-              style={{
-                color: '#087f5b',
-              }}
-            />
-
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginTop: 12,
-                color: '#064e3b',
-              }}
-            >
-              {payments}
-            </div>
-
-            <div
-              style={{
-                color: '#64748b',
-              }}
-            >
-              Pagos registrados
-            </div>
-          </div>
-
-          {/* PAGOS APROBADOS */}
-          <div
-            className="card"
-            style={{
-              padding: 24,
-            }}
-          >
-            <CheckCircle
-              size={25}
-              style={{
-                color: '#16a34a',
-              }}
-            />
-
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginTop: 12,
-                color: '#064e3b',
-              }}
-            >
-              {approved}
-            </div>
-
-            <div
-              style={{
-                color: '#64748b',
-              }}
-            >
-              Pagos aprobados
-            </div>
-          </div>
-
-          {/* PAGOS RECHAZADOS */}
-          <div
-            className="card"
-            style={{
-              padding: 24,
-            }}
-          >
-            <XCircle
-              size={25}
-              style={{
-                color: '#dc2626',
-              }}
-            />
-
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginTop: 12,
-                color: '#064e3b',
-              }}
-            >
-              {rejected}
-            </div>
-
-            <div
-              style={{
-                color: '#64748b',
-              }}
-            >
-              Pagos rechazados
-            </div>
-          </div>
-
-          {/* PAGOS PENDIENTES */}
-          <div
-            className="card"
-            style={{
-              padding: 24,
-            }}
-          >
-            <Clock3
-              size={25}
-              style={{
-                color: '#d97706',
-              }}
-            />
-
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginTop: 12,
-                color: '#064e3b',
-              }}
-            >
-              {pending}
-            </div>
-
-            <div
-              style={{
-                color: '#64748b',
-              }}
-            >
-              Pagos pendientes
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* CÓMO FUNCIONA */}
-        <div
-          style={{
-            marginTop: 55,
-          }}
-        >
-          <h2>¿Cómo funciona?</h2>
+        <div style={{ marginTop: 30 }}>
+          <Link
+            href="/reporte-cuotas"
+            className="card"
+            style={{
+              ...buttonStyle,
+              justifyContent: 'space-between',
+              padding: 20,
+              background: '#ecfdf5',
+              color: '#065f46',
+              border: '1px solid #bbf7d0',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <FileText size={24} />
+              <span>
+                <strong style={{ display: 'block', fontSize: 17 }}>
+                  Consultar reporte de cuotas
+                </strong>
+                <small style={{ fontWeight: 500 }}>
+                  Revisa quién está al día y qué fechas tiene pendientes.
+                </small>
+              </span>
+            </span>
+            <ArrowRight size={20} />
+          </Link>
+        </div>
 
+        <div style={{ marginTop: 55 }}>
+          <h2>¿Cómo funciona?</h2>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4,1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
               gap: 16,
               marginTop: 18,
             }}
@@ -532,9 +426,7 @@ export default async function Home() {
             ].map((item, index) => (
               <div
                 className="card"
-                style={{
-                  padding: 20,
-                }}
+                style={{ padding: 20 }}
                 key={item}
               >
                 <div
@@ -546,27 +438,16 @@ export default async function Home() {
                 >
                   0{index + 1}
                 </div>
-
                 <strong>{item}</strong>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ÚLTIMOS PAGOS */}
-        <div
-          style={{
-            marginTop: 55,
-          }}
-        >
+        <div style={{ marginTop: 55 }}>
           <h2>Últimos pagos</h2>
-
           {latest.length === 0 ? (
-            <p
-              style={{
-                color: '#64748b',
-              }}
-            >
+            <p style={{ color: '#64748b' }}>
               No hay pagos registrados todavía.
             </p>
           ) : (
@@ -584,23 +465,19 @@ export default async function Home() {
                     padding: 16,
                     display: 'flex',
                     justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
                   }}
                   key={payment.id}
                 >
                   <span>
-                    <strong>
-                      {payment.player.fullName}
-                    </strong>
-
+                    <strong>{payment.player.fullName}</strong>
                     <br />
-
                     <small>
-                      {payment.paymentDate.toLocaleDateString(
-                        'es-PE'
-                      )}
+                      {payment.paymentDate.toLocaleDateString('es-PE')}
                     </small>
                   </span>
-
                   <span
                     className={`badge badge-${payment.status.toLowerCase()}`}
                   >
