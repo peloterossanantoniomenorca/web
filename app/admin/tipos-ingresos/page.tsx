@@ -129,22 +129,49 @@ export default function TiposIngresosPage() {
         </Link>
       </div>
 
-      <header style={{ marginBottom: 28 }}>
-        <h1
-          style={{
-            fontSize: 30,
-            lineHeight: 1.3,
-            fontWeight: 700,
-            color: '#12372b',
-          }}
-        >
-          Registro de tipos de ingresos
-        </h1>
+     
+<div
+  style={{
+    display: 'block',
+    width: '100%',
+    margin: '0 0 28px 0',
+    padding: '0',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+  }}
+>
+  <h1
+    style={{
+      display: 'block',
+      margin: 0,
+      padding: 0,
+      backgroundColor: 'transparent',
+      color: '#12372b',
+      fontSize: 30,
+      fontWeight: 700,
+      lineHeight: 1.3,
+    }}
+  >
+    Registro de tipos de ingresos
+  </h1>
 
-        <p style={{ color: '#4b5563', marginTop: 10, lineHeight: 1.6 }}>
-          Administra los conceptos de ingreso y sus montos en soles.
-        </p>
-      </header>
+  <p
+    style={{
+      display: 'block',
+      margin: '10px 0 0 0',
+      padding: 0,
+      backgroundColor: 'transparent',
+      color: '#4b5563',
+      fontSize: 16,
+      lineHeight: 1.6,
+    }}
+  >
+    Administra los conceptos de ingreso y sus montos en soles.
+  </p>
+</div>
+
 
       {error && (
         <div
