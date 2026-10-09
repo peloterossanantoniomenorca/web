@@ -8,6 +8,7 @@ import {
   XCircle,
   ArrowRight,
   FileText,
+  Scale,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -60,7 +61,8 @@ export default async function Home() {
           style={{
             padding: '78px 0 70px',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
             gap: 30,
             alignItems: 'center',
           }}
@@ -152,6 +154,21 @@ export default async function Home() {
               >
                 <FileText size={17} />
                 Reporte de cuotas
+                <ArrowRight size={17} />
+              </Link>
+
+              <Link
+                href="/balance"
+                className="btn"
+                style={{
+                  background: '#dbeafe',
+                  color: '#1e40af',
+                  border: '1px solid #93c5fd',
+                  fontWeight: 800,
+                }}
+              >
+                <Scale size={17} />
+                Balance
                 <ArrowRight size={17} />
               </Link>
             </div>
@@ -373,7 +390,14 @@ export default async function Home() {
           ))}
         </div>
 
-        <div style={{ marginTop: 30 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 16,
+            marginTop: 30,
+          }}
+        >
           <Link
             href="/reporte-cuotas"
             className="card"
@@ -401,6 +425,39 @@ export default async function Home() {
                 </strong>
                 <small style={{ fontWeight: 500 }}>
                   Revisa quién está al día y qué fechas tiene pendientes.
+                </small>
+              </span>
+            </span>
+            <ArrowRight size={20} />
+          </Link>
+
+          <Link
+            href="/balance"
+            className="card"
+            style={{
+              ...buttonStyle,
+              justifyContent: 'space-between',
+              padding: 20,
+              background: '#eff6ff',
+              color: '#1e40af',
+              border: '1px solid #bfdbfe',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <Scale size={24} />
+              <span>
+                <strong style={{ display: 'block', fontSize: 17 }}>
+                  Consultar Balance
+                </strong>
+                <small style={{ fontWeight: 500 }}>
+                  Revisa los ingresos, egresos y el saldo acumulado del club.
                 </small>
               </span>
             </span>
