@@ -58,7 +58,7 @@ export default async function AdminPage() {
           </p>
         </div>
 
-        <form action="/api/auth/logout" method="POST">
+        <form action="/admin/logout" method="POST">
           <button
             type="submit"
             style={{
