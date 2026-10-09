@@ -58,8 +58,6 @@ export async function POST(request: Request) {
         ? body.description.trim()
         : '';
 
-    const amount = Number(body.amount);
-
     if (!description) {
       return NextResponse.json(
         { error: 'La descripción es obligatoria.' },
@@ -74,17 +72,25 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
+    // Si el monto está vacío, se registra como cero.
+    const montoVacio =
       body.amount === null ||
       body.amount === undefined ||
-      body.amount === '' ||
+      (typeof body.amount === 'string' &&
+        body.amount.trim() === '');
+
+    const amount = montoVacio ? 0 : Number(body.amount);
+
+    if (
       !Number.isFinite(amount) ||
-      amount <= 0 ||
+      amount < 0 ||
       amount > 99999999.99 ||
-      !/^\d+(\.\d{1,2})?$/.test(String(body.amount))
+      !/^\d+(\.\d{1,2})?$/.test(String(amount))
     ) {
       return NextResponse.json(
-        { error: 'Ingresa un monto válido con máximo dos decimales.' },
+        {
+          error: 'Ingresa un monto válido, con máximo dos decimales.',
+        },
         { status: 400 }
       );
     }
@@ -103,7 +109,9 @@ export async function POST(request: Request) {
 
     if (existente) {
       return NextResponse.json(
-        { error: 'Ya existe un tipo de ingreso con esa descripción.' },
+        {
+          error: 'Ya existe un tipo de ingreso con esa descripción.',
+        },
         { status: 409 }
       );
     }
