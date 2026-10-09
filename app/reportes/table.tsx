@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { PaymentStatus } from '@prisma/client';
 
 type PaymentRow = {
   id: string;
