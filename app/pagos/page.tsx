@@ -83,6 +83,10 @@ export default function PagosPage() {
     (type) => type.id === paymentTypeId
   );
 
+  const requierePichanga =
+    selectedType?.description.trim().toLowerCase() ===
+    'pago cuota por partido';
+
   const selectedPlayer = players.find(
     (player) => player.id === playerId
   );
@@ -220,14 +224,17 @@ export default function PagosPage() {
       return;
     }
 
-    if (!paymentDate || !pichangaDate) {
-      setError(
-        'Selecciona la fecha del pago y la fecha de pichanga.'
-      );
+    if (!paymentDate) {
+      setError('Selecciona la fecha del pago.');
       return;
     }
 
-    if (pichangaDate < paymentDate) {
+    if (requierePichanga && !pichangaDate) {
+      setError('Selecciona la fecha de pichanga.');
+      return;
+    }
+
+    if (requierePichanga && pichangaDate < paymentDate) {
       setError(
         'La fecha de pichanga no puede ser anterior a la fecha del pago.'
       );
@@ -247,7 +254,11 @@ export default function PagosPage() {
       formData.append('playerId', playerId);
       formData.append('paymentTypeId', paymentTypeId);
       formData.append('paymentDate', paymentDate);
-      formData.append('pichangaDate', pichangaDate);
+
+      if (requierePichanga) {
+        formData.append('pichangaDate', pichangaDate);
+      }
+
       formData.append('paymentMethod', paymentMethod);
 
       if (paymentMethod === 'YAPE' && voucher) {
@@ -274,7 +285,7 @@ export default function PagosPage() {
         paymentType: selectedType.description,
         amount: data.amount ?? selectedType.amount,
         paymentDate,
-        pichangaDate,
+        pichangaDate: requierePichanga ? pichangaDate : '',
         status: 'Pendiente de aprobación',
         paymentMethod,
       });
@@ -562,9 +573,27 @@ export default function PagosPage() {
                   id="paymentTypeId"
                   className="input"
                   value={paymentTypeId}
-                  onChange={(event) =>
-                    setPaymentTypeId(event.target.value)
-                  }
+                  onChange={(event) => {
+                    const nuevoTipoId = event.target.value;
+
+                    const nuevoTipo = paymentTypes.find(
+                      (type) => type.id === nuevoTipoId
+                    );
+
+                    const necesitaPichanga =
+                      nuevoTipo?.description.trim().toLowerCase() ===
+                      'pago cuota por partido';
+
+                    setPaymentTypeId(nuevoTipoId);
+
+                    if (!necesitaPichanga) {
+                      setPichangaDate('');
+                    }
+
+                    setError('');
+                    setSuccess('');
+                    setReceipt(null);
+                  }}
                   required
                 >
                   <option value="">
@@ -761,8 +790,9 @@ export default function PagosPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(220px, 1fr))',
+                  gridTemplateColumns: requierePichanga
+                    ? 'repeat(auto-fit, minmax(220px, 1fr))'
+                    : 'minmax(0, 1fr)',
                   gap: 18,
                 }}
               >
@@ -791,44 +821,46 @@ export default function PagosPage() {
                   />
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="pichangaDate"
-                    style={{
-                      display: 'block',
-                      marginBottom: 8,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Fecha de pichanga
-                  </label>
-
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      id="pichangaDate"
-                      type="date"
-                      className="input"
-                      value={pichangaDate}
-                      min={paymentDate || undefined}
-                      onChange={(event) =>
-                        setPichangaDate(event.target.value)
-                      }
-                      required
-                    />
-
-                    <CalendarDays
-                      size={17}
+                {requierePichanga && (
+                  <div>
+                    <label
+                      htmlFor="pichangaDate"
                       style={{
-                        position: 'absolute',
-                        right: 12,
-                        top: 13,
-                        color: '#087f5b',
-                        pointerEvents: 'none',
-                        display: 'none',
+                        display: 'block',
+                        marginBottom: 8,
+                        fontWeight: 700,
                       }}
-                    />
+                    >
+                      Fecha de pichanga
+                    </label>
+
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="pichangaDate"
+                        type="date"
+                        className="input"
+                        value={pichangaDate}
+                        min={paymentDate || undefined}
+                        onChange={(event) =>
+                          setPichangaDate(event.target.value)
+                        }
+                        required={requierePichanga}
+                      />
+
+                      <CalendarDays
+                        size={17}
+                        style={{
+                          position: 'absolute',
+                          right: 12,
+                          top: 13,
+                          color: '#087f5b',
+                          pointerEvents: 'none',
+                          display: 'none',
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* VOUCHER PARA YAPE */}
@@ -1041,10 +1073,14 @@ export default function PagosPage() {
                       <div>
                         Fecha de pago: {formatDate(receipt.paymentDate)}
                       </div>
-                      <div>
-                        Fecha de pichanga:{' '}
-                        {formatDate(receipt.pichangaDate)}
-                      </div>
+
+                      {receipt.pichangaDate && (
+                        <div>
+                          Fecha de pichanga:{' '}
+                          {formatDate(receipt.pichangaDate)}
+                        </div>
+                      )}
+
                       <div>
                         Forma de pago:{' '}
                         {receipt.paymentMethod === 'YAPE'
