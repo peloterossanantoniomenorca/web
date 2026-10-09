@@ -50,9 +50,9 @@ model Payment {
   id              String        @id @default(cuid())
   playerId        String
   paymentDate     DateTime
-  voucherUrl      String
-  voucherFileName String
-  voucherFileType String
+  voucherUrl      String?
+  voucherFileName String?
+  voucherFileType String?
   amount          Decimal?      @db.Decimal(10, 2)
   status          PaymentStatus @default(PENDING)
   paymentTypeId   String?
