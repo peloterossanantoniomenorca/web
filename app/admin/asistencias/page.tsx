@@ -29,6 +29,8 @@ type AttendanceRow = {
   fullName: string;
   asistio: boolean;
   estadoPago: string;
+  tocado: boolean;
+  teniaRegistro: boolean;
 };
 
 function today() {
@@ -91,6 +93,8 @@ export default function AsistenciasPage() {
               existing?.estadoPago === 'PAGADO'
                 ? 'PAGADO'
                 : 'POR_PAGAR',
+            tocado: false,
+            teniaRegistro: Boolean(existing),
           };
         })
       );
@@ -112,17 +116,29 @@ export default function AsistenciasPage() {
 
   function marcarTodos(asistio: boolean) {
     setRows((current) =>
-      current.map((row) => ({ ...row, asistio }))
+      current.map((row) => ({
+        ...row,
+        asistio,
+        tocado: row.tocado || row.asistio !== asistio,
+      }))
     );
+
     setSuccess('');
   }
 
   function cambiarAsistencia(playerId: string, asistio: boolean) {
     setRows((current) =>
       current.map((row) =>
-        row.playerId === playerId ? { ...row, asistio } : row
+        row.playerId === playerId
+          ? {
+              ...row,
+              asistio,
+              tocado: row.tocado || row.asistio !== asistio,
+            }
+          : row
       )
     );
+
     setSuccess('');
   }
 
@@ -132,6 +148,18 @@ export default function AsistenciasPage() {
     setSuccess('');
 
     try {
+      const asistenciasModificadas = rows
+        .filter((row) => row.tocado)
+        .map((row) => ({
+          playerId: row.playerId,
+          asistio: row.asistio,
+        }));
+
+      if (asistenciasModificadas.length === 0) {
+        setSuccess('No hay cambios de asistencia que guardar.');
+        return;
+      }
+
       const response = await fetch('/api/asistencias', {
         method: 'POST',
         headers: {
@@ -139,10 +167,7 @@ export default function AsistenciasPage() {
         },
         body: JSON.stringify({
           fecha,
-          asistencias: rows.map((row) => ({
-            playerId: row.playerId,
-            asistio: row.asistio,
-          })),
+          asistencias: asistenciasModificadas,
         }),
       });
 
@@ -155,9 +180,7 @@ export default function AsistenciasPage() {
       }
 
       setSuccess(
-        `¡Asistencia guardada! ${
-          data.total ?? rows.filter((row) => row.asistio).length
-        } peloteros registrados como asistentes para el ${formatDate(fecha)}.`
+        `Cambios guardados correctamente para el ${formatDate(fecha)}.`
       );
 
       await cargarAsistencias();
