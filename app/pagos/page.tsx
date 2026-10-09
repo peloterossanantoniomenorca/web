@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Smartphone,
   XCircle,
+  Info,
 } from 'lucide-react';
 
 type Player = {
@@ -97,14 +98,18 @@ export default function PagosPage() {
         ]);
 
         if (!playersResponse.ok || !typesResponse.ok) {
-          throw new Error('No se pudieron cargar los datos del formulario.');
+          throw new Error(
+            'No se pudieron cargar los datos del formulario.'
+          );
         }
 
         const playersData = await playersResponse.json();
         const typesData = await typesResponse.json();
 
         if (!Array.isArray(playersData) || !Array.isArray(typesData)) {
-          throw new Error('El servidor devolvió datos con un formato inválido.');
+          throw new Error(
+            'El servidor devolvió datos con un formato inválido.'
+          );
         }
 
         if (active) {
@@ -159,7 +164,6 @@ export default function PagosPage() {
     setSuccess('');
     setReceipt(null);
 
-    // Al elegir efectivo, quitar cualquier archivo seleccionado.
     if (method === 'EFECTIVO') {
       setVoucher(null);
       setPreview('');
@@ -217,7 +221,9 @@ export default function PagosPage() {
     }
 
     if (!paymentDate || !pichangaDate) {
-      setError('Selecciona la fecha del pago y la fecha de pichanga.');
+      setError(
+        'Selecciona la fecha del pago y la fecha de pichanga.'
+      );
       return;
     }
 
@@ -256,7 +262,9 @@ export default function PagosPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'No se pudo registrar el pago.');
+        throw new Error(
+          data.error || 'No se pudo registrar el pago.'
+        );
       }
 
       setSuccess('¡Pago registrado correctamente!');
@@ -291,7 +299,10 @@ export default function PagosPage() {
   }
 
   return (
-    <main className="container" style={{ padding: '48px 0 70px' }}>
+    <main
+      className="container"
+      style={{ padding: '48px 0 70px' }}
+    >
       <div style={{ maxWidth: 804, margin: 'auto' }}>
         <div style={{ marginBottom: 24 }}>
           <span
@@ -301,15 +312,28 @@ export default function PagosPage() {
               background: '#d1fae5',
             }}
           >
-            <CreditCard size={14} style={{ marginRight: 5 }} />
+            <CreditCard
+              size={14}
+              style={{ marginRight: 5 }}
+            />
             REGISTRO DE PAGOS
           </span>
 
-          <h1 style={{ margin: '14px 0 8px', color: '#12352b' }}>
+          <h1
+            style={{
+              margin: '14px 0 8px',
+              color: '#12352b',
+            }}
+          >
             Registrar pago
           </h1>
 
-          <p style={{ color: '#64748b', lineHeight: 1.7 }}>
+          <p
+            style={{
+              color: '#64748b',
+              lineHeight: 1.7,
+            }}
+          >
             Selecciona tu nombre, el concepto que vas a cancelar y la forma
             de pago para registrar tu pago.
           </p>
@@ -339,6 +363,143 @@ export default function PagosPage() {
             </div>
           ) : (
             <>
+              {/* AVISO IMPORTANTE SOBRE LAS FORMAS DE PAGO */}
+              <div
+                role="note"
+                style={{
+                  padding: 20,
+                  borderRadius: 16,
+                  border: '2px solid #34d399',
+                  background:
+                    'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                  boxShadow:
+                    '0 5px 18px rgba(5, 150, 105, 0.12)',
+                  color: '#064e3b',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 11,
+                    marginBottom: 14,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 42,
+                      height: 42,
+                      minWidth: 42,
+                      borderRadius: 12,
+                      background: '#047857',
+                      color: '#ffffff',
+                    }}
+                  >
+                    <Info size={25} />
+                  </span>
+
+                  <strong
+                    style={{
+                      fontSize: 18,
+                      lineHeight: 1.4,
+                      color: '#065f46',
+                    }}
+                  >
+                    ¡Información importante sobre los pagos!
+                  </strong>
+                </div>
+
+                <p
+                  style={{
+                    margin: '0 0 10px',
+                    lineHeight: 1.7,
+                    fontSize: 15,
+                  }}
+                >
+                  <strong>Si pagas por Yape:</strong> realiza el abono al
+                  número de James Flores:
+                </p>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                    padding: '13px 15px',
+                    marginBottom: 15,
+                    borderRadius: 12,
+                    background: '#ffffff',
+                    border: '1px solid #6ee7b7',
+                  }}
+                >
+                  <Smartphone
+                    size={25}
+                    color="#059669"
+                  />
+
+                  <strong
+                    style={{
+                      fontSize: 26,
+                      letterSpacing: 1,
+                      color: '#047857',
+                    }}
+                  >
+                    920656704
+                  </strong>
+
+                  <span
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 20,
+                      background: '#d1fae5',
+                      color: '#065f46',
+                      fontSize: 13,
+                      fontWeight: 800,
+                    }}
+                  >
+                    James Flores
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    height: 1,
+                    background: '#a7f3d0',
+                    marginBottom: 13,
+                  }}
+                />
+
+                <p
+                  style={{
+                    margin: '0 0 12px',
+                    lineHeight: 1.7,
+                    fontSize: 15,
+                  }}
+                >
+                  <strong>Si pagas en efectivo:</strong> asegúrate de
+                  entregarle el dinero a <strong>James o Jose Maria</strong>.
+                </p>
+
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: 'rgba(255,255,255,0.7)',
+                    color: '#047857',
+                    fontWeight: 800,
+                    fontSize: 15,
+                    textAlign: 'center',
+                  }}
+                >
+                  ¡Muchas gracias por tu colaboración! ⚽
+                </div>
+              </div>
+
+              {/* PELOTERO */}
               <div>
                 <label
                   htmlFor="playerId"
@@ -355,25 +516,36 @@ export default function PagosPage() {
                   id="playerId"
                   className="input"
                   value={playerId}
-                  onChange={(event) => setPlayerId(event.target.value)}
+                  onChange={(event) =>
+                    setPlayerId(event.target.value)
+                  }
                   required
                 >
                   <option value="">Selecciona tu nombre</option>
 
                   {players.map((player) => (
-                    <option key={player.id} value={player.id}>
+                    <option
+                      key={player.id}
+                      value={player.id}
+                    >
                       {player.fullName}
                     </option>
                   ))}
                 </select>
 
                 {players.length === 0 && (
-                  <p style={{ color: '#b45309', fontSize: 13 }}>
+                  <p
+                    style={{
+                      color: '#b45309',
+                      fontSize: 13,
+                    }}
+                  >
                     No hay peloteros activos disponibles.
                   </p>
                 )}
               </div>
 
+              {/* TIPO DE PAGO */}
               <div>
                 <label
                   htmlFor="paymentTypeId"
@@ -390,7 +562,9 @@ export default function PagosPage() {
                   id="paymentTypeId"
                   className="input"
                   value={paymentTypeId}
-                  onChange={(event) => setPaymentTypeId(event.target.value)}
+                  onChange={(event) =>
+                    setPaymentTypeId(event.target.value)
+                  }
                   required
                 >
                   <option value="">
@@ -398,21 +572,29 @@ export default function PagosPage() {
                   </option>
 
                   {paymentTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
+                    <option
+                      key={type.id}
+                      value={type.id}
+                    >
                       {type.description}
                     </option>
                   ))}
                 </select>
 
                 {paymentTypes.length === 0 && (
-                  <p style={{ color: '#b45309', fontSize: 13 }}>
+                  <p
+                    style={{
+                      color: '#b45309',
+                      fontSize: 13,
+                    }}
+                  >
                     Todavía no hay tipos de pago registrados. El administrador
                     debe crear al menos uno en PaymentType.
                   </p>
                 )}
               </div>
 
-              {/* Forma de pago */}
+              {/* FORMA DE PAGO */}
               <fieldset
                 style={{
                   border: 0,
@@ -434,7 +616,8 @@ export default function PagosPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gridTemplateColumns:
+                      'repeat(2, minmax(0, 1fr))',
                     gap: 12,
                   }}
                 >
@@ -445,11 +628,15 @@ export default function PagosPage() {
                       gap: 10,
                       padding: 16,
                       border: `2px solid ${
-                        paymentMethod === 'YAPE' ? '#087f5b' : '#d1d5db'
+                        paymentMethod === 'YAPE'
+                          ? '#087f5b'
+                          : '#d1d5db'
                       }`,
                       borderRadius: 12,
                       background:
-                        paymentMethod === 'YAPE' ? '#ecfdf5' : '#ffffff',
+                        paymentMethod === 'YAPE'
+                          ? '#ecfdf5'
+                          : '#ffffff',
                       cursor: 'pointer',
                     }}
                   >
@@ -458,10 +645,19 @@ export default function PagosPage() {
                       name="paymentMethod"
                       value="YAPE"
                       checked={paymentMethod === 'YAPE'}
-                      onChange={() => handlePaymentMethodChange('YAPE')}
+                      onChange={() =>
+                        handlePaymentMethodChange('YAPE')
+                      }
                     />
-                    <Smartphone size={22} color="#087f5b" />
-                    <span style={{ fontWeight: 700 }}>Yape</span>
+
+                    <Smartphone
+                      size={22}
+                      color="#087f5b"
+                    />
+
+                    <span style={{ fontWeight: 700 }}>
+                      Yape
+                    </span>
                   </label>
 
                   <label
@@ -471,11 +667,15 @@ export default function PagosPage() {
                       gap: 10,
                       padding: 16,
                       border: `2px solid ${
-                        paymentMethod === 'EFECTIVO' ? '#087f5b' : '#d1d5db'
+                        paymentMethod === 'EFECTIVO'
+                          ? '#087f5b'
+                          : '#d1d5db'
                       }`,
                       borderRadius: 12,
                       background:
-                        paymentMethod === 'EFECTIVO' ? '#ecfdf5' : '#ffffff',
+                        paymentMethod === 'EFECTIVO'
+                          ? '#ecfdf5'
+                          : '#ffffff',
                       cursor: 'pointer',
                     }}
                   >
@@ -484,14 +684,24 @@ export default function PagosPage() {
                       name="paymentMethod"
                       value="EFECTIVO"
                       checked={paymentMethod === 'EFECTIVO'}
-                      onChange={() => handlePaymentMethodChange('EFECTIVO')}
+                      onChange={() =>
+                        handlePaymentMethodChange('EFECTIVO')
+                      }
                     />
-                    <Banknote size={22} color="#087f5b" />
-                    <span style={{ fontWeight: 700 }}>Efectivo</span>
+
+                    <Banknote
+                      size={22}
+                      color="#087f5b"
+                    />
+
+                    <span style={{ fontWeight: 700 }}>
+                      Efectivo
+                    </span>
                   </label>
                 </div>
               </fieldset>
 
+              {/* MONTO */}
               <div>
                 <label
                   htmlFor="amount"
@@ -547,10 +757,12 @@ export default function PagosPage() {
                 </small>
               </div>
 
+              {/* FECHAS */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gridTemplateColumns:
+                    'repeat(auto-fit, minmax(220px, 1fr))',
                   gap: 18,
                 }}
               >
@@ -572,7 +784,9 @@ export default function PagosPage() {
                     className="input"
                     value={paymentDate}
                     max={today()}
-                    onChange={(event) => setPaymentDate(event.target.value)}
+                    onChange={(event) =>
+                      setPaymentDate(event.target.value)
+                    }
                     required
                   />
                 </div>
@@ -596,7 +810,9 @@ export default function PagosPage() {
                       className="input"
                       value={pichangaDate}
                       min={paymentDate || undefined}
-                      onChange={(event) => setPichangaDate(event.target.value)}
+                      onChange={(event) =>
+                        setPichangaDate(event.target.value)
+                      }
                       required
                     />
 
@@ -615,7 +831,7 @@ export default function PagosPage() {
                 </div>
               </div>
 
-              {/* Voucher: solo se muestra para Yape */}
+              {/* VOUCHER PARA YAPE */}
               {paymentMethod === 'YAPE' ? (
                 <div>
                   <label
@@ -640,10 +856,18 @@ export default function PagosPage() {
                   >
                     <CloudUpload
                       size={36}
-                      style={{ color: '#087f5b', marginBottom: 10 }}
+                      style={{
+                        color: '#087f5b',
+                        marginBottom: 10,
+                      }}
                     />
 
-                    <p style={{ fontWeight: 800, margin: '0 0 6px' }}>
+                    <p
+                      style={{
+                        fontWeight: 800,
+                        margin: '0 0 6px',
+                      }}
+                    >
                       JPG, PNG o PDF
                     </p>
 
@@ -662,7 +886,9 @@ export default function PagosPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                       onChange={(event) =>
-                        handleVoucher(event.target.files?.[0] || null)
+                        handleVoucher(
+                          event.target.files?.[0] || null
+                        )
                       }
                       required={paymentMethod === 'YAPE'}
                       style={{
@@ -732,7 +958,11 @@ export default function PagosPage() {
                     gap: 12,
                   }}
                 >
-                  <CheckCircle2 size={24} color="#087f5b" />
+                  <CheckCircle2
+                    size={24}
+                    color="#087f5b"
+                  />
+
                   <div>
                     <p
                       style={{
@@ -743,6 +973,7 @@ export default function PagosPage() {
                     >
                       Pago en efectivo
                     </p>
+
                     <p
                       style={{
                         margin: '5px 0 0',
@@ -756,6 +987,7 @@ export default function PagosPage() {
                 </div>
               )}
 
+              {/* MENSAJE DE ERROR */}
               {error && (
                 <div
                   role="alert"
@@ -770,6 +1002,7 @@ export default function PagosPage() {
                 </div>
               )}
 
+              {/* CONFIRMACIÓN DEL PAGO */}
               {success && (
                 <div
                   role="status"
@@ -794,17 +1027,29 @@ export default function PagosPage() {
                   </div>
 
                   {receipt && (
-                    <div style={{ lineHeight: 1.9, fontSize: 14 }}>
+                    <div
+                      style={{
+                        lineHeight: 1.9,
+                        fontSize: 14,
+                      }}
+                    >
                       <div>Pelotero: {receipt.player}</div>
                       <div>Concepto: {receipt.paymentType}</div>
-                      <div>Monto: {formatMoney(receipt.amount)}</div>
-                      <div>Fecha de pago: {formatDate(receipt.paymentDate)}</div>
                       <div>
-                        Fecha de pichanga: {formatDate(receipt.pichangaDate)}
+                        Monto: {formatMoney(receipt.amount)}
+                      </div>
+                      <div>
+                        Fecha de pago: {formatDate(receipt.paymentDate)}
+                      </div>
+                      <div>
+                        Fecha de pichanga:{' '}
+                        {formatDate(receipt.pichangaDate)}
                       </div>
                       <div>
                         Forma de pago:{' '}
-                        {receipt.paymentMethod === 'YAPE' ? 'Yape' : 'Efectivo'}
+                        {receipt.paymentMethod === 'YAPE'
+                          ? 'Yape'
+                          : 'Efectivo'}
                       </div>
                       <div>Estado: {receipt.status}</div>
                     </div>
@@ -812,6 +1057,7 @@ export default function PagosPage() {
                 </div>
               )}
 
+              {/* BOTÓN REGISTRAR */}
               <button
                 type="submit"
                 className="btn"
@@ -824,7 +1070,9 @@ export default function PagosPage() {
                 style={{
                   width: '100%',
                   padding: 15,
-                  background: submitting ? '#86b94a' : '#a3e635',
+                  background: submitting
+                    ? '#86b94a'
+                    : '#a3e635',
                   color: '#163300',
                   border: 'none',
                   fontSize: 15,
