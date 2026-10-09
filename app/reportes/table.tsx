@@ -9,6 +9,7 @@ type PaymentRow = {
   date: string;
   pichangaDate: string | null;
   paymentType: string;
+  paymentMethod: string;
   amount: number | null;
   status: PaymentStatus;
   voucher: string | null;
@@ -64,6 +65,17 @@ export default function ReportsTable({
     }).format(value);
   }
 
+  function formatPaymentMethod(value: string | null | undefined) {
+    if (!value) return 'No registrado';
+
+    const method = value.trim().toUpperCase();
+
+    if (method === 'YAPE') return 'Yape';
+    if (method === 'CASH' || method === 'EFECTIVO') return 'Efectivo';
+
+    return value;
+  }
+
   async function change(
     id: string,
     newStatus: 'APPROVED' | 'REJECTED'
@@ -111,6 +123,7 @@ export default function ReportsTable({
       [
         'Pelotero',
         'Tipo de pago',
+        'Método de pago',
         'Monto (PEN)',
         'Fecha del pago',
         'Fecha de pichanga',
@@ -121,11 +134,12 @@ export default function ReportsTable({
       ...filtered.map((p) => [
         p.player,
         p.paymentType,
+        formatPaymentMethod(p.paymentMethod),
         p.amount === null ? '' : p.amount.toFixed(2),
         formatDate(p.date),
         formatDate(p.pichangaDate),
         p.status,
-        p.file,
+        p.file || p.voucher || '',
         new Date(p.created).toLocaleString('es-PE'),
       ]),
     ];
@@ -274,7 +288,7 @@ export default function ReportsTable({
         style={{
           width: '100%',
           borderCollapse: 'collapse',
-          minWidth: 1150,
+          minWidth: 1250,
         }}
       >
         <thead>
@@ -282,6 +296,7 @@ export default function ReportsTable({
             {[
               'Pelotero',
               'Tipo de pago',
+              'Método de pago',
               'Monto',
               'Fecha del pago',
               'Fecha de pichanga',
@@ -302,6 +317,33 @@ export default function ReportsTable({
               <td style={tdStyle}>{p.player}</td>
 
               <td style={tdStyle}>{p.paymentType}</td>
+
+              <td style={tdStyle}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '5px 9px',
+                    borderRadius: 8,
+                    background:
+                      formatPaymentMethod(p.paymentMethod) === 'Yape'
+                        ? '#f3e8ff'
+                        : formatPaymentMethod(p.paymentMethod) === 'Efectivo'
+                          ? '#dcfce7'
+                          : '#f1f5f9',
+                    color:
+                      formatPaymentMethod(p.paymentMethod) === 'Yape'
+                        ? '#7e22ce'
+                        : formatPaymentMethod(p.paymentMethod) === 'Efectivo'
+                          ? '#166534'
+                          : '#475569',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {formatPaymentMethod(p.paymentMethod)}
+                </span>
+              </td>
 
               <td
                 style={{
@@ -408,7 +450,7 @@ export default function ReportsTable({
           {filtered.length === 0 && (
             <tr>
               <td
-                colSpan={8}
+                colSpan={9}
                 style={{
                   padding: 28,
                   textAlign: 'center',
