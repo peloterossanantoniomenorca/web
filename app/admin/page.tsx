@@ -19,6 +19,7 @@ export default async function AdminPage() {
     textDecoration: 'none',
     color: '#111827',
     background: '#fff',
+    transition: 'box-shadow 0.2s ease',
   } as const;
 
   return (
@@ -26,7 +27,7 @@ export default async function AdminPage() {
       className="container"
       style={{
         padding: '48px 16px',
-        maxWidth: 1000,
+        maxWidth: 1100,
         margin: '0 auto',
       }}
     >
@@ -41,7 +42,14 @@ export default async function AdminPage() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: 30, fontWeight: 700 }}>
+          <h1
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              color: '#12352b',
+              margin: 0,
+            }}
+          >
             Panel administrador
           </h1>
 
@@ -75,7 +83,7 @@ export default async function AdminPage() {
       >
         {/* Registro de peloteros */}
         <Link href="/admin/peloteros" style={estiloTarjeta}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Registro de peloteros
           </h2>
 
@@ -84,9 +92,29 @@ export default async function AdminPage() {
           </p>
         </Link>
 
+        {/* Registro de asistencias */}
+        <Link
+          href="/admin/asistencias"
+          style={{
+            ...estiloTarjeta,
+            borderColor: '#86efac',
+            color: '#166534',
+            background: '#f0fdf4',
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
+            Registro de asistencias
+          </h2>
+
+          <p style={{ marginTop: 8, color: '#166534' }}>
+            Registra quiénes asistieron a cada pichanga y controla sus cuotas
+            pendientes o pagadas.
+          </p>
+        </Link>
+
         {/* Reportes generales */}
         <Link href="/reportes" style={estiloTarjeta}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Reportes
           </h2>
 
@@ -105,7 +133,7 @@ export default async function AdminPage() {
             background: '#f0fdf4',
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Registro de egresos
           </h2>
 
@@ -124,7 +152,7 @@ export default async function AdminPage() {
             background: '#eff6ff',
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Reporte de egresos
           </h2>
 
@@ -143,7 +171,7 @@ export default async function AdminPage() {
             background: '#f0fdf4',
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Registro de tipos de ingresos
           </h2>
 
@@ -162,7 +190,7 @@ export default async function AdminPage() {
             background: '#fff7ed',
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
             Registro de tipos de egresos
           </h2>
 
