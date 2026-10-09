@@ -62,7 +62,7 @@ model Payment {
 
   player          Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
   paymentType     PaymentType?  @relation(fields: [paymentTypeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
+  paymentMethod String @default("YAPE")
   @@index([playerId, paymentDate])
   @@index([status])
   @@index([paymentTypeId])
