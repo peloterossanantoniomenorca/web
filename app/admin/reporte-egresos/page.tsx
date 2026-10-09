@@ -144,21 +144,45 @@ export default async function ReporteEgresosPage({
         </Link>
       </div>
 
-      <header style={{ marginBottom: 28 }}>
-        <h1
-          style={{
-            fontSize: 30,
-            fontWeight: 700,
-            color: '#12372b',
-          }}
-        >
-          Reporte de egresos
-        </h1>
 
-        <p style={{ color: '#6b7280', marginTop: 8 }}>
-          Consulta y filtra los gastos registrados del club.
-        </p>
-      </header>
+<div
+  style={{
+    marginBottom: 28,
+    padding: '8px 0',
+    background: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+  }}
+>
+  <h1
+    style={{
+      fontSize: 30,
+      lineHeight: 1.3,
+      fontWeight: 700,
+      color: '#12372b',
+      background: 'transparent',
+      margin: 0,
+      padding: 0,
+    }}
+  >
+    Reporte de egresos
+  </h1>
+
+  <p
+    style={{
+      color: '#4b5563',
+      background: 'transparent',
+      marginTop: 10,
+      marginBottom: 0,
+      padding: 0,
+      fontSize: 16,
+      lineHeight: 1.6,
+    }}
+  >
+    Consulta y filtra los gastos registrados del club.
+  </p>
+</div>
+
 
       <section
         style={{
