@@ -5,6 +5,7 @@ import {
   UserPlus,
   Power,
   CheckCircle2,
+  Phone,
 } from 'lucide-react';
 
 type Player = {
@@ -14,6 +15,7 @@ type Player = {
   fullName: string;
   jerseyNumber: number;
   position: string;
+  phone?: string | null;
   status: 'ACTIVE' | 'INACTIVE';
   photoUrl?: string | null;
 };
@@ -31,6 +33,7 @@ export default function PlayerManager({
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
+    phone: '',
     jerseyNumber: '',
     position: '',
   });
@@ -56,7 +59,10 @@ export default function PlayerManager({
           headers: {
             'content-type': 'application/json',
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            phone: form.phone.trim() || null,
+          }),
         }
       );
 
@@ -70,11 +76,13 @@ export default function PlayerManager({
         return;
       }
 
-      const player = data.player || data;
+      const player: Player = data.player || data;
 
       setPlayers((current) => [
         player,
-        ...current,
+        ...current.filter(
+          (item) => item.id !== player.id
+        ),
       ]);
 
       setCreatedPlayer(player);
@@ -82,6 +90,7 @@ export default function PlayerManager({
       setForm({
         firstName: '',
         lastName: '',
+        phone: '',
         jerseyNumber: '',
         position: '',
       });
@@ -125,7 +134,7 @@ export default function PlayerManager({
       setPlayers((current) =>
         current.map((item) =>
           item.id === player.id
-            ? data
+            ? data.player || data
             : item
         )
       );
@@ -185,6 +194,11 @@ export default function PlayerManager({
             </div>
 
             <div>
+              <strong>Celular:</strong>{' '}
+              {createdPlayer.phone || 'No registrado'}
+            </div>
+
+            <div>
               <strong>ID del pelotero:</strong>{' '}
               <code>{createdPlayer.id}</code>
             </div>
@@ -218,7 +232,7 @@ export default function PlayerManager({
           style={{
             display: 'grid',
             gridTemplateColumns:
-              'repeat(auto-fit,minmax(200px,1fr))',
+              'repeat(auto-fit, minmax(200px, 1fr))',
             gap: 12,
           }}
         >
@@ -244,6 +258,21 @@ export default function PlayerManager({
               setForm({
                 ...form,
                 lastName: event.target.value,
+              })
+            }
+          />
+
+          <input
+            className="input"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="Celular (ej. 987654321)"
+            value={form.phone}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                phone: event.target.value,
               })
             }
           />
@@ -334,8 +363,7 @@ export default function PlayerManager({
                 style={{
                   padding: 18,
                   display: 'flex',
-                  justifyContent:
-                    'space-between',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: 15,
                   flexWrap: 'wrap',
@@ -351,20 +379,32 @@ export default function PlayerManager({
                   <br />
 
                   <small
-                    style={{
-                      color: '#64748b',
-                    }}
+                    style={{ color: '#64748b' }}
                   >
-                    {player.position} ·{' '}
-                    {player.status}
+                    {player.position} · {player.status}
                   </small>
 
                   <br />
 
                   <small
                     style={{
-                      color: '#94a3b8',
+                      color: player.phone
+                        ? '#0f766e'
+                        : '#94a3b8',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      marginTop: 5,
                     }}
+                  >
+                    <Phone size={14} />
+                    {player.phone || 'Celular no registrado'}
+                  </small>
+
+                  <br />
+
+                  <small
+                    style={{ color: '#94a3b8' }}
                   >
                     ID: {player.id}
                   </small>
@@ -373,9 +413,7 @@ export default function PlayerManager({
                 <button
                   className="btn btn-light"
                   type="button"
-                  onClick={() =>
-                    toggle(player)
-                  }
+                  onClick={() => toggle(player)}
                 >
                   <Power size={17} />
 
