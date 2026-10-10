@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   const player = await prisma.player.create({
     data: {
       ...data,
+      phone: data.phone?.trim() || null,
       fullName: `${data.firstName} ${data.lastName}`,
       photoUrl: data.photoUrl || null,
     },
