@@ -23,6 +23,7 @@ model Player {
   id           String       @id @default(cuid())
   firstName    String
   lastName     String
+  phone        String?
   fullName     String
   jerseyNumber Int
   position     String
