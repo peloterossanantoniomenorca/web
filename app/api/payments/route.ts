@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     const paymentTypeId = String(form.get('paymentTypeId') || '').trim();
     const paymentDateValue = String(form.get('paymentDate') || '').trim();
     const pichangaDateValue = String(form.get('pichangaDate') || '').trim();
+    const amountValue = String(form.get('amount') || '').trim();
 
     const methodValue = String(form.get('paymentMethod') || 'YAPE')
       .trim()
@@ -69,7 +70,6 @@ export async function POST(req: Request) {
 
     const paymentDate = parseDate(paymentDateValue);
 
-    // Estos campos siempre son obligatorios.
     if (!playerId || !paymentTypeId || !paymentDate) {
       return NextResponse.json(
         {
@@ -135,6 +135,34 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+    }
+
+    // La cuota por partido siempre usa el monto configurado en la BD.
+    // Para los demás tipos se acepta el monto editado en el formulario.
+    let amount = paymentType.amount;
+
+    if (!requierePichanga) {
+      if (!/^\d+(\.\d{1,2})?$/.test(amountValue)) {
+        return NextResponse.json(
+          { error: 'Ingresa un monto válido con hasta dos decimales.' },
+          { status: 400 }
+        );
+      }
+
+      const parsedAmount = Number(amountValue);
+
+      if (
+        !Number.isFinite(parsedAmount) ||
+        parsedAmount <= 0 ||
+        parsedAmount > 99999999.99
+      ) {
+        return NextResponse.json(
+          { error: 'El monto debe ser mayor que cero y no superar 99,999,999.99.' },
+          { status: 400 }
+        );
+      }
+
+      amount = parsedAmount;
     }
 
     // Solo los pagos por Yape necesitan voucher.
@@ -211,7 +239,7 @@ export async function POST(req: Request) {
         paymentTypeId,
         paymentDate,
         pichangaDate,
-        amount: paymentType.amount,
+        amount,
         paymentMethod,
         voucherUrl,
         voucherFileName,
@@ -225,8 +253,7 @@ export async function POST(req: Request) {
         id: payment.id,
         player: player.fullName,
         paymentType: paymentType.description,
-        amount:
-          payment.amount?.toString() ?? paymentType.amount.toString(),
+        amount: payment.amount?.toString() ?? amount.toString(),
         paymentDate: payment.paymentDate.toISOString(),
         pichangaDate: payment.pichangaDate?.toISOString() ?? null,
         paymentMethod: payment.paymentMethod,
