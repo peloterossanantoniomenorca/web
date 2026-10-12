@@ -35,6 +35,8 @@ type ReporteResponse = {
   error?: string;
 };
 
+type EstadoFiltro = 'TODOS' | 'AL_DIA' | 'DEBE';
+
 const MESES = [
   'Enero',
   'Febrero',
@@ -54,6 +56,9 @@ export default function ReporteCuotasPage() {
   const [anio, setAnio] = useState(String(new Date().getFullYear()));
   const [mes, setMes] = useState('');
   const [dia, setDia] = useState('');
+  const [estadoFiltro, setEstadoFiltro] =
+    useState<EstadoFiltro>('TODOS');
+
   const [datos, setDatos] = useState<ReporteResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -76,7 +81,9 @@ export default function ReporteCuotasPage() {
       const data = (await response.json()) as ReporteResponse;
 
       if (!response.ok) {
-        throw new Error(data.error || 'No se pudo cargar el reporte.');
+        throw new Error(
+          data.error || 'No se pudo cargar el reporte.'
+        );
       }
 
       setDatos(data);
@@ -105,6 +112,13 @@ export default function ReporteCuotasPage() {
     ? new Date(Number(anio), Number(mes), 0).getDate()
     : 31;
 
+  // El filtro de estado se aplica a los resultados ya consultados.
+  const reporteFiltrado = (datos?.reporte ?? []).filter((jugador) => {
+    if (estadoFiltro === 'TODOS') return true;
+
+    return jugador.estadoCuenta === estadoFiltro;
+  });
+
   const thStyle = {
     padding: '14px 12px',
     textAlign: 'left' as const,
@@ -129,6 +143,7 @@ export default function ReporteCuotasPage() {
     background: '#ffffff',
     color: '#12352b',
     minHeight: 44,
+    boxSizing: 'border-box' as const,
   };
 
   return (
@@ -223,7 +238,8 @@ export default function ReporteCuotasPage() {
             }}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gridTemplateColumns:
+                'repeat(auto-fit, minmax(160px, 1fr))',
               gap: 14,
               alignItems: 'end',
             }}
@@ -236,7 +252,11 @@ export default function ReporteCuotasPage() {
                   setAnio(event.target.value);
                   setDia('');
                 }}
-                style={{ ...inputStyle, display: 'block', marginTop: 8 }}
+                style={{
+                  ...inputStyle,
+                  display: 'block',
+                  marginTop: 8,
+                }}
               >
                 {anios.map((item) => (
                   <option key={item} value={item}>
@@ -254,7 +274,11 @@ export default function ReporteCuotasPage() {
                   setMes(event.target.value);
                   setDia('');
                 }}
-                style={{ ...inputStyle, display: 'block', marginTop: 8 }}
+                style={{
+                  ...inputStyle,
+                  display: 'block',
+                  marginTop: 8,
+                }}
               >
                 <option value="">Todos los meses</option>
                 {MESES.map((nombre, index) => (
@@ -279,11 +303,38 @@ export default function ReporteCuotasPage() {
                 }}
               >
                 <option value="">Todos los días</option>
-                {Array.from({ length: diasDelMes }, (_, index) => (
-                  <option key={index + 1} value={String(index + 1)}>
-                    {String(index + 1).padStart(2, '0')}
-                  </option>
-                ))}
+                {Array.from(
+                  { length: diasDelMes },
+                  (_, index) => (
+                    <option
+                      key={index + 1}
+                      value={String(index + 1)}
+                    >
+                      {String(index + 1).padStart(2, '0')}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            <label style={{ display: 'block', fontWeight: 700 }}>
+              Estado de cuenta
+              <select
+                value={estadoFiltro}
+                onChange={(event) =>
+                  setEstadoFiltro(
+                    event.target.value as EstadoFiltro
+                  )
+                }
+                style={{
+                  ...inputStyle,
+                  display: 'block',
+                  marginTop: 8,
+                }}
+              >
+                <option value="TODOS">Todos los peloteros</option>
+                <option value="AL_DIA">Al día</option>
+                <option value="DEBE">Debe cuotas</option>
               </select>
             </label>
 
@@ -291,7 +342,10 @@ export default function ReporteCuotasPage() {
               type="submit"
               className="btn btn-dark"
               disabled={loading}
-              style={{ minHeight: 44, justifyContent: 'center' }}
+              style={{
+                minHeight: 44,
+                justifyContent: 'center',
+              }}
             >
               {loading ? (
                 <LoaderCircle size={18} />
@@ -310,9 +364,10 @@ export default function ReporteCuotasPage() {
               lineHeight: 1.6,
             }}
           >
-            Selecciona solo el año para revisar todo el año; agrega el
-            mes para limitar la consulta, y el día para consultar una
-            fecha específica.
+            Selecciona el año y, opcionalmente, el mes y el día.
+            Utiliza el estado de cuenta para mostrar todos los
+            peloteros, solo los que están al día o solo los que
+            tienen cuotas pendientes.
           </p>
         </section>
 
@@ -377,25 +432,53 @@ export default function ReporteCuotasPage() {
               className="card"
               style={{ padding: 18, overflowX: 'auto' }}
             >
-              <div style={{ marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 21 }}>
-                  Estado de cuenta de los peloteros
-                </h2>
-                <p
+              <div
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 21 }}>
+                    Estado de cuenta de los peloteros
+                  </h2>
+                  <p
+                    style={{
+                      margin: '6px 0 0',
+                      color: '#64748b',
+                      fontSize: 13,
+                    }}
+                  >
+                    {mes
+                      ? `${MESES[Number(mes) - 1]} de ${anio}`
+                      : `Año ${anio}`}
+                    {dia ? ` — Día ${dia}` : ''}
+                  </p>
+                </div>
+
+                <span
                   style={{
-                    margin: '6px 0 0',
-                    color: '#64748b',
-                    fontSize: 13,
+                    background: '#f0fdf4',
+                    color: '#166534',
+                    padding: '7px 11px',
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {mes
-                    ? `${MESES[Number(mes) - 1]} de ${anio}`
-                    : `Año ${anio}`}
-                  {dia ? ` — Día ${dia}` : ''}
-                </p>
+                  {reporteFiltrado.length}{' '}
+                  {reporteFiltrado.length === 1
+                    ? 'pelotero'
+                    : 'peloteros'}
+                </span>
               </div>
 
-              {datos.reporte.length === 0 ? (
+              {reporteFiltrado.length === 0 ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -405,13 +488,22 @@ export default function ReporteCuotasPage() {
                 >
                   <Users
                     size={35}
-                    style={{ margin: '0 auto 12px', opacity: 0.6 }}
+                    style={{
+                      margin: '0 auto 12px',
+                      opacity: 0.6,
+                    }}
                   />
                   <p style={{ fontWeight: 800, margin: 0 }}>
-                    No hay asistencias registradas en este período.
+                    {datos.reporte.length === 0
+                      ? 'No hay asistencias registradas en este período.'
+                      : estadoFiltro === 'AL_DIA'
+                        ? 'No hay peloteros al día en este período.'
+                        : estadoFiltro === 'DEBE'
+                          ? 'No hay peloteros con cuotas pendientes en este período.'
+                          : 'No hay peloteros para mostrar.'}
                   </p>
                   <p style={{ fontSize: 13 }}>
-                    Prueba con otro año, mes o día.
+                    Prueba con otro año, mes, día o estado de cuenta.
                   </p>
                 </div>
               ) : (
@@ -431,7 +523,7 @@ export default function ReporteCuotasPage() {
                   </thead>
 
                   <tbody>
-                    {datos.reporte.map((jugador) => (
+                    {reporteFiltrado.map((jugador) => (
                       <tr key={jugador.playerId}>
                         <td style={{ ...tdStyle, fontWeight: 800 }}>
                           {jugador.nombre}
@@ -471,7 +563,9 @@ export default function ReporteCuotasPage() {
 
                         <td style={{ ...tdStyle, minWidth: 220 }}>
                           {jugador.fechasPendientes.length === 0 ? (
-                            <span style={{ color: '#94a3b8' }}>—</span>
+                            <span style={{ color: '#94a3b8' }}>
+                              —
+                            </span>
                           ) : (
                             <div
                               style={{
@@ -517,11 +611,12 @@ export default function ReporteCuotasPage() {
                 }}
               >
                 <strong>Importante:</strong> solo cuentan los pagos
-                aprobados del concepto «Pago cuota por partido» asociados
-                a la fecha correspondiente. Las donaciones y otros
-                conceptos no se consideran cuotas. Solo se muestran
-                peloteros con asistencia registrada en el período elegido,
-                independientemente de si están activos o inactivos.
+                aprobados del concepto «Pago cuota por partido»
+                asociados a la fecha correspondiente. Las donaciones
+                y otros conceptos no se consideran cuotas. Solo se
+                muestran peloteros con asistencia registrada en el
+                período elegido, independientemente de si están activos
+                o inactivos.
               </div>
             </section>
           </>
