@@ -23,7 +23,8 @@ export default function ReportsTable({
   payments: PaymentRow[];
 }) {
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
+  // Por defecto, mostrar solamente los pagos pendientes.
+  const [status, setStatus] = useState('PENDING');
   const [pichangaDate, setPichangaDate] = useState('');
   const [changingId, setChangingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -74,6 +75,12 @@ export default function ReportsTable({
     if (method === 'CASH' || method === 'EFECTIVO') return 'Efectivo';
 
     return value;
+  }
+
+  function formatStatus(value: PaymentStatus) {
+    if (value === 'PENDING') return 'Pendiente';
+    if (value === 'APPROVED') return 'Aprobado';
+    return 'Rechazado';
   }
 
   async function change(
@@ -138,7 +145,7 @@ export default function ReportsTable({
         p.amount === null ? '' : p.amount.toFixed(2),
         formatDate(p.date),
         formatDate(p.pichangaDate),
-        p.status,
+        formatStatus(p.status),
         p.file || p.voucher || '',
         new Date(p.created).toLocaleString('es-PE'),
       ]),
@@ -175,52 +182,90 @@ export default function ReportsTable({
 
   const thStyle = {
     textAlign: 'left' as const,
-    padding: 12,
-    borderBottom: '1px solid #e5e7eb',
+    padding: '14px 12px',
+    borderBottom: '1px solid #dbe5e1',
     whiteSpace: 'nowrap' as const,
+    background: '#f0f7f4',
+    color: '#12372d',
+    fontSize: 13,
+    fontWeight: 800,
   };
 
   const tdStyle = {
-    padding: 12,
-    borderBottom: '1px solid #eef2f7',
+    padding: '14px 12px',
+    borderBottom: '1px solid #e8efec',
     verticalAlign: 'middle' as const,
+    fontSize: 13,
+    lineHeight: 1.5,
   };
 
   return (
-    <div
+    <section
       className="card"
-      style={{ padding: 18, overflowX: 'auto' }}
+      style={{
+        padding: 18,
+        minWidth: 0,
+        maxWidth: '100%',
+      }}
     >
       <div
         style={{
           display: 'flex',
-          gap: 10,
+          gap: 12,
           marginBottom: 18,
           flexWrap: 'wrap',
-          alignItems: 'center',
+          alignItems: 'end',
         }}
       >
-        <input
-          className="input"
-          style={{ maxWidth: 260 }}
-          placeholder="Buscar pelotero"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <div style={{ flex: '1 1 190px', minWidth: 170 }}>
+          <label
+            htmlFor="player-search"
+            style={{
+              display: 'block',
+              fontSize: 12,
+              marginBottom: 5,
+              color: '#64748b',
+            }}
+          >
+            Buscar pelotero
+          </label>
+          <input
+            id="player-search"
+            className="input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+            placeholder="Nombre del pelotero"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
 
-        <select
-          className="input"
-          style={{ maxWidth: 200 }}
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">Todos los estados</option>
-          <option value="PENDING">Pendiente</option>
-          <option value="APPROVED">Aprobado</option>
-          <option value="REJECTED">Rechazado</option>
-        </select>
+        <div style={{ flex: '0 1 190px', minWidth: 170 }}>
+          <label
+            htmlFor="payment-status"
+            style={{
+              display: 'block',
+              fontSize: 12,
+              marginBottom: 5,
+              color: '#64748b',
+            }}
+          >
+            Filtrar por estado
+          </label>
+          <select
+            id="payment-status"
+            className="input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="PENDING">Pendientes</option>
+            <option value="APPROVED">Aprobados</option>
+            <option value="REJECTED">Rechazados</option>
+            <option value="">Todos los estados</option>
+          </select>
+        </div>
 
-        <div style={{ minWidth: 190 }}>
+        <div style={{ flex: '0 1 190px', minWidth: 170 }}>
           <label
             htmlFor="pichanga-date"
             style={{
@@ -230,37 +275,42 @@ export default function ReportsTable({
               color: '#64748b',
             }}
           >
-            Filtrar por fecha de pichanga
+            Fecha de pichanga
           </label>
-
           <input
             id="pichanga-date"
             className="input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
             type="date"
             value={pichangaDate}
             onChange={(e) => setPichangaDate(e.target.value)}
           />
         </div>
 
-        <button className="btn btn-dark" onClick={csv}>
+        <button
+          className="btn btn-dark"
+          onClick={csv}
+          style={{ minHeight: 42 }}
+        >
           Exportar CSV
         </button>
 
-        {(q || status || pichangaDate) && (
+        {(q || status !== 'PENDING' || pichangaDate) && (
           <button
             className="btn"
             style={{
+              minHeight: 42,
               background: '#e8f5ef',
               color: '#065f46',
               border: '1px solid #b7e4cf',
             }}
             onClick={() => {
               setQ('');
-              setStatus('');
+              setStatus('PENDING');
               setPichangaDate('');
             }}
           >
-            Limpiar filtros
+            Restablecer filtros
           </button>
         )}
       </div>
@@ -280,189 +330,244 @@ export default function ReportsTable({
         </div>
       )}
 
-      <p style={{ color: '#64748b', fontSize: 14 }}>
-        Mostrando {filtered.length} de {payments.length} pagos.
-      </p>
-
-      <table
+      <p
         style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          minWidth: 1250,
+          color: '#64748b',
+          fontSize: 13,
+          margin: '8px 0 14px',
         }}
       >
-        <thead>
-          <tr>
-            {[
-              'Pelotero',
-              'Tipo de pago',
-              'Método de pago',
-              'Monto',
-              'Fecha del pago',
-              'Fecha de pichanga',
-              'Estado',
-              'Voucher',
-              'Registro',
-            ].map((heading) => (
-              <th key={heading} style={thStyle}>
-                {heading}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        Mostrando <strong>{filtered.length}</strong> de{' '}
+        <strong>{payments.length}</strong> pagos.
+        {' '}
+        {status === 'PENDING'
+          ? 'Vista de pagos pendientes.'
+          : status === 'APPROVED'
+            ? 'Vista de pagos aprobados.'
+            : status === 'REJECTED'
+              ? 'Vista de pagos rechazados.'
+              : 'Vista de todos los estados.'}
+      </p>
 
-        <tbody>
-          {filtered.map((p) => (
-            <tr key={p.id}>
-              <td style={tdStyle}>{p.player}</td>
+      {/* El desplazamiento horizontal queda dentro de la tabla. */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          overflowY: 'visible',
+          border: '1px solid #e5ece8',
+          borderRadius: 12,
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        <table
+          style={{
+            width: '100%',
+            minWidth: 1120,
+            borderCollapse: 'separate',
+            borderSpacing: 0,
+            tableLayout: 'auto',
+          }}
+        >
+          <thead>
+            <tr>
+              {[
+                'Pelotero',
+                'Tipo de pago',
+                'Método de pago',
+                'Monto',
+                'Fecha del pago',
+                'Fecha de pichanga',
+                'Estado',
+                'Voucher y acciones',
+                'Registro',
+              ].map((heading) => (
+                <th key={heading} style={thStyle}>
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-              <td style={tdStyle}>{p.paymentType}</td>
+          <tbody>
+            {filtered.map((p) => {
+              const method = formatPaymentMethod(p.paymentMethod);
 
-              <td style={tdStyle}>
-                <span
+              return (
+                <tr key={p.id}>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      minWidth: 130,
+                      fontWeight: 700,
+                      color: '#12372d',
+                    }}
+                  >
+                    {p.player}
+                  </td>
+
+                  <td style={{ ...tdStyle, minWidth: 145 }}>
+                    {p.paymentType}
+                  </td>
+
+                  <td style={tdStyle}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '5px 9px',
+                        borderRadius: 8,
+                        background:
+                          method === 'Yape'
+                            ? '#f3e8ff'
+                            : method === 'Efectivo'
+                              ? '#dcfce7'
+                              : '#f1f5f9',
+                        color:
+                          method === 'Yape'
+                            ? '#7e22ce'
+                            : method === 'Efectivo'
+                              ? '#166534'
+                              : '#475569',
+                        fontSize: 12,
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {method}
+                    </span>
+                  </td>
+
+                  <td
+                    style={{
+                      ...tdStyle,
+                      whiteSpace: 'nowrap',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {formatMoney(p.amount)}
+                  </td>
+
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                    {formatDate(p.date)}
+                  </td>
+
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                    {formatDate(p.pichangaDate)}
+                  </td>
+
+                  <td style={tdStyle}>
+                    <span
+                      className={`badge badge-${p.status.toLowerCase()}`}
+                    >
+                      {formatStatus(p.status)}
+                    </span>
+                  </td>
+
+                  <td style={{ ...tdStyle, minWidth: 145 }}>
+                    {p.voucher ? (
+                      <a
+                        href={p.voucher}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#047857',
+                          fontWeight: 800,
+                          textDecoration: 'underline',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Ver voucher
+                      </a>
+                    ) : (
+                      <span
+                        style={{
+                          color: '#94a3b8',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        No disponible
+                      </span>
+                    )}
+
+                    {p.status === 'PENDING' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: 7,
+                          marginTop: 9,
+                        }}
+                      >
+                        <button
+                          className="btn"
+                          style={{
+                            background: '#dcfce7',
+                            color: '#166534',
+                            padding: '7px 11px',
+                            fontSize: 12,
+                            whiteSpace: 'nowrap',
+                          }}
+                          disabled={changingId === p.id}
+                          onClick={() => change(p.id, 'APPROVED')}
+                        >
+                          {changingId === p.id
+                            ? 'Procesando…'
+                            : 'Aprobar'}
+                        </button>
+
+                        <button
+                          className="btn"
+                          style={{
+                            background: '#fee2e2',
+                            color: '#b91c1c',
+                            padding: '7px 11px',
+                            fontSize: 12,
+                            whiteSpace: 'nowrap',
+                          }}
+                          disabled={changingId === p.id}
+                          onClick={() => change(p.id, 'REJECTED')}
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tdStyle,
+                      minWidth: 150,
+                      whiteSpace: 'nowrap',
+                      color: '#475569',
+                    }}
+                  >
+                    {new Date(p.created).toLocaleString('es-PE')}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {filtered.length === 0 && (
+              <tr>
+                <td
+                  colSpan={9}
                   style={{
-                    display: 'inline-block',
-                    padding: '5px 9px',
-                    borderRadius: 8,
-                    background:
-                      formatPaymentMethod(p.paymentMethod) === 'Yape'
-                        ? '#f3e8ff'
-                        : formatPaymentMethod(p.paymentMethod) === 'Efectivo'
-                          ? '#dcfce7'
-                          : '#f1f5f9',
-                    color:
-                      formatPaymentMethod(p.paymentMethod) === 'Yape'
-                        ? '#7e22ce'
-                        : formatPaymentMethod(p.paymentMethod) === 'Efectivo'
-                          ? '#166534'
-                          : '#475569',
-                    fontSize: 12,
-                    fontWeight: 800,
-                    whiteSpace: 'nowrap',
+                    padding: 32,
+                    textAlign: 'center',
+                    color: '#64748b',
+                    background: '#fff',
                   }}
                 >
-                  {formatPaymentMethod(p.paymentMethod)}
-                </span>
-              </td>
-
-              <td
-                style={{
-                  ...tdStyle,
-                  whiteSpace: 'nowrap',
-                  fontWeight: 700,
-                }}
-              >
-                {formatMoney(p.amount)}
-              </td>
-
-              <td style={tdStyle}>{formatDate(p.date)}</td>
-
-              <td style={tdStyle}>
-                {formatDate(p.pichangaDate)}
-              </td>
-
-              <td style={tdStyle}>
-                <span
-                  className={`badge badge-${p.status.toLowerCase()}`}
-                >
-                  {p.status === 'PENDING'
-                    ? 'Pendiente'
-                    : p.status === 'APPROVED'
-                      ? 'Aprobado'
-                      : 'Rechazado'}
-                </span>
-              </td>
-
-              <td style={tdStyle}>
-                {p.voucher ? (
-                  <a
-                    href={p.voucher}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#047857',
-                      fontWeight: 700,
-                      textDecoration: 'underline',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Ver voucher
-                  </a>
-                ) : (
-                  <span
-                    style={{
-                      color: '#94a3b8',
-                      fontWeight: 600,
-                    }}
-                  >
-                    No disponible
-                  </span>
-                )}
-
-                {p.status === 'PENDING' && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 6,
-                      marginTop: 8,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <button
-                      className="btn"
-                      style={{
-                        background: '#dcfce7',
-                        color: '#166534',
-                        padding: '7px 10px',
-                        fontSize: 12,
-                      }}
-                      disabled={changingId === p.id}
-                      onClick={() => change(p.id, 'APPROVED')}
-                    >
-                      {changingId === p.id
-                        ? 'Procesando…'
-                        : 'Aprobar'}
-                    </button>
-
-                    <button
-                      className="btn"
-                      style={{
-                        background: '#fee2e2',
-                        color: '#b91c1c',
-                        padding: '7px 10px',
-                        fontSize: 12,
-                      }}
-                      disabled={changingId === p.id}
-                      onClick={() => change(p.id, 'REJECTED')}
-                    >
-                      Rechazar
-                    </button>
-                  </div>
-                )}
-              </td>
-
-              <td style={tdStyle}>
-                {new Date(p.created).toLocaleString('es-PE')}
-              </td>
-            </tr>
-          ))}
-
-          {filtered.length === 0 && (
-            <tr>
-              <td
-                colSpan={9}
-                style={{
-                  padding: 28,
-                  textAlign: 'center',
-                  color: '#64748b',
-                }}
-              >
-                No se encontraron pagos con los filtros seleccionados.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+                  No se encontraron pagos con los filtros seleccionados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
