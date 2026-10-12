@@ -199,13 +199,14 @@ export default function AsistenciasPage() {
   const asistentes = rows.filter((row) => row.asistio).length;
   const ausentes = rows.length - asistentes;
 
-  // Contadores de pago independientes de la asistencia.
+  // Solo cuentan los peloteros que asistieron a la fecha seleccionada.
+  // Los ausentes no se consideran cuotas pendientes ni pagadas.
   const pendientes = rows.filter(
-    (row) => row.estadoPago !== 'PAGADO'
+    (row) => row.asistio && row.estadoPago !== 'PAGADO'
   ).length;
 
   const pagados = rows.filter(
-    (row) => row.estadoPago === 'PAGADO'
+    (row) => row.asistio && row.estadoPago === 'PAGADO'
   ).length;
 
   const thStyle = {
@@ -399,6 +400,9 @@ export default function AsistenciasPage() {
             <strong style={{ fontSize: 28, color: '#b45309' }}>
               {pendientes}
             </strong>
+            <p style={{ fontSize: 11, color: '#64748b', margin: '5px 0 0' }}>
+              Asistieron y no pagaron
+            </p>
           </div>
 
           <div className="card" style={{ padding: 18 }}>
@@ -409,6 +413,9 @@ export default function AsistenciasPage() {
             <strong style={{ fontSize: 28, color: '#047857' }}>
               {pagados}
             </strong>
+            <p style={{ fontSize: 11, color: '#64748b', margin: '5px 0 0' }}>
+              Asistieron y pagaron
+            </p>
           </div>
         </section>
 
@@ -600,11 +607,14 @@ export default function AsistenciasPage() {
                 lineHeight: 1.6,
               }}
             >
-              <strong>Importante:</strong> solo los pagos aprobados del
-              concepto «Pago cuota por partido» cuentan como pagados para
-              la fecha de pichanga correspondiente. Las donaciones y los
-              demás conceptos no cuentan como cuotas. El estado de pago
-              se muestra independientemente de si el pelotero asistió.
+              <strong>Importante:</strong> los contadores Por pagar y
+              Pagados consideran solamente a los peloteros que asistieron
+              a la fecha seleccionada. Una cuota cuenta como pagada cuando
+              el pago correspondiente está aprobado y asociado a esa fecha.
+              Solo el concepto «Pago cuota por partido» debe contar como
+              cuota; las donaciones y otros conceptos no deben incluirse.
+              Guarda los cambios de asistencia para conservarlos en la base
+              de datos.
             </div>
           )}
         </section>
