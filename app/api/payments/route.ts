@@ -127,15 +127,6 @@ export async function POST(req: Request) {
         );
       }
 
-      if (pichangaDate < paymentDate) {
-        return NextResponse.json(
-          {
-            error:
-              'La fecha de pichanga no puede ser anterior a la fecha del pago.',
-          },
-          { status: 400 }
-        );
-      }
     }
 
     // Por defecto, usar el monto configurado en la base de datos.
