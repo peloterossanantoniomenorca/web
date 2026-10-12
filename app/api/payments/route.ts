@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { uploadVoucher } from '@/lib/storage';
 
@@ -137,14 +138,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // La cuota por partido siempre usa el monto configurado en la BD.
-    // Para los demás tipos se acepta el monto editado en el formulario.
-    let amount = paymentType.amount;
+    // Por defecto, usar el monto configurado en la base de datos.
+    // La cuota por partido no permite modificar ese monto.
+    let amount: Prisma.Decimal = new Prisma.Decimal(
+      paymentType.amount.toString()
+    );
 
+    // Para los demás tipos de pago, aceptar el monto editado.
     if (!requierePichanga) {
       if (!/^\d+(\.\d{1,2})?$/.test(amountValue)) {
         return NextResponse.json(
-          { error: 'Ingresa un monto válido con hasta dos decimales.' },
+          {
+            error: 'Ingresa un monto válido con hasta dos decimales.',
+          },
           { status: 400 }
         );
       }
@@ -157,12 +163,15 @@ export async function POST(req: Request) {
         parsedAmount > 99999999.99
       ) {
         return NextResponse.json(
-          { error: 'El monto debe ser mayor que cero y no superar 99,999,999.99.' },
+          {
+            error:
+              'El monto debe ser mayor que cero y no superar 99,999,999.99.',
+          },
           { status: 400 }
         );
       }
 
-      amount = parsedAmount;
+      amount = new Prisma.Decimal(parsedAmount.toFixed(2));
     }
 
     // Solo los pagos por Yape necesitan voucher.
@@ -253,7 +262,8 @@ export async function POST(req: Request) {
         id: payment.id,
         player: player.fullName,
         paymentType: paymentType.description,
-        amount: payment.amount?.toString() ?? amount.toString(),
+        amount:
+          payment.amount?.toString() ?? amount.toString(),
         paymentDate: payment.paymentDate.toISOString(),
         pichangaDate: payment.pichangaDate?.toISOString() ?? null,
         paymentMethod: payment.paymentMethod,
