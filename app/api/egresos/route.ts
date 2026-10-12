@@ -54,8 +54,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let uploadedFileId: string | undefined;
-
   try {
     const session = await getSession();
 
@@ -70,6 +68,10 @@ export async function POST(request: Request) {
 
     const idTipEgreso = String(
       formData.get('idTipEgreso') ?? ''
+    ).trim();
+
+    const detalle = String(
+      formData.get('detalle') ?? ''
     ).trim();
 
     const fechaTexto = String(
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
 
     if (
       !idTipEgreso ||
+      !detalle ||
       !fechaTexto ||
       !montoTexto ||
       !responsableId
@@ -98,11 +101,22 @@ export async function POST(request: Request) {
       );
     }
 
+    if (detalle.length > 500) {
+      return NextResponse.json(
+        { error: 'El detalle no puede superar los 500 caracteres.' },
+        { status: 400 }
+      );
+    }
+
     const monto = Number(montoTexto);
 
-    if (!Number.isFinite(monto) || monto <= 0) {
+    if (
+      !Number.isFinite(monto) ||
+      monto <= 0 ||
+      monto > 99999999.99
+    ) {
       return NextResponse.json(
-        { error: 'El monto debe ser mayor que cero.' },
+        { error: 'El monto debe ser mayor que cero y no superar 99,999,999.99.' },
         { status: 400 }
       );
     }
@@ -179,17 +193,18 @@ export async function POST(request: Request) {
     const desiredName = [
       'EGRESO',
       tipo.descripcion,
+      detalle,
       responsable.fullName,
       fechaNombre,
     ].join(' - ');
 
     const stored = await uploadVoucher(file, desiredName);
-    uploadedFileId = stored.key;
 
     const egreso = await prisma.egreso.create({
       data: {
         id: randomUUID(),
         idTipEgreso: tipo.idTipEgreso,
+        detalle,
         fecha,
         monto,
         responsableEgreso: responsable.fullName,
@@ -200,6 +215,8 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
+        idTipEgreso: true,
+        detalle: true,
         fecha: true,
         monto: true,
         responsableEgreso: true,
@@ -219,7 +236,10 @@ export async function POST(request: Request) {
     console.error('ERROR REGISTRANDO EGRESO:', error);
 
     return NextResponse.json(
-      { error: 'No se pudo registrar el egreso. Revisa los datos e inténtalo nuevamente.' },
+      {
+        error:
+          'No se pudo registrar el egreso. Revisa los datos e inténtalo nuevamente.',
+      },
       { status: 500 }
     );
   }
