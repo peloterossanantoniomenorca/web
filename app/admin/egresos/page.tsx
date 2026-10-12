@@ -17,6 +17,7 @@ export default function RegistroEgresosPage() {
   const [tipos, setTipos] = useState<TipoEgreso[]>([]);
   const [peloteros, setPeloteros] = useState<Pelotero[]>([]);
   const [idTipEgreso, setIdTipEgreso] = useState('');
+  const [detalle, setDetalle] = useState('');
   const [fecha, setFecha] = useState(
     new Date().toLocaleDateString('en-CA')
   );
@@ -68,8 +69,20 @@ export default function RegistroEgresosPage() {
     setError('');
     setMensaje('');
 
-    if (!idTipEgreso || !fecha || !monto || !responsableEgreso || !voucher) {
-      setError('Completa todos los campos y adjunta el voucher.');
+    if (
+      !idTipEgreso ||
+      !detalle.trim() ||
+      !fecha ||
+      !monto ||
+      !responsableEgreso ||
+      !voucher
+    ) {
+      setError('Completa todos los campos obligatorios y adjunta el voucher.');
+      return;
+    }
+
+    if (detalle.trim().length > 500) {
+      setError('El detalle no puede superar los 500 caracteres.');
       return;
     }
 
@@ -98,6 +111,7 @@ export default function RegistroEgresosPage() {
 
     const datos = new FormData();
     datos.append('idTipEgreso', idTipEgreso);
+    datos.append('detalle', detalle.trim());
     datos.append('fecha', fecha);
     datos.append('monto', importe.toFixed(2));
     datos.append('responsableEgreso', responsableEgreso);
@@ -126,6 +140,7 @@ export default function RegistroEgresosPage() {
 
       setMensaje('¡Egreso registrado correctamente!');
       setIdTipEgreso('');
+      setDetalle('');
       setFecha(new Date().toLocaleDateString('en-CA'));
       setMonto('');
       setResponsableEgreso('');
@@ -155,7 +170,8 @@ export default function RegistroEgresosPage() {
     fontSize: '15px',
     background: '#fff',
     color: '#111827',
-  } as const;
+    boxSizing: 'border-box' as const,
+  };
 
   if (cargando) {
     return (
@@ -279,6 +295,47 @@ export default function RegistroEgresosPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="detalle"
+                style={{
+                  display: 'block',
+                  fontWeight: 600,
+                  marginBottom: '8px',
+                  color: '#374151',
+                }}
+              >
+                Detalle del egreso *
+              </label>
+
+              <textarea
+                id="detalle"
+                name="detalle"
+                value={detalle}
+                onChange={(e) => setDetalle(e.target.value)}
+                required
+                maxLength={500}
+                rows={3}
+                placeholder="Describe en qué se gastó el dinero. Ej.: compra de balones, pago de arbitraje..."
+                style={{
+                  ...estiloCampo,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                }}
+              />
+
+              <p
+                style={{
+                  color: '#6b7280',
+                  fontSize: '13px',
+                  marginTop: '6px',
+                  textAlign: 'right',
+                }}
+              >
+                {detalle.length}/500 caracteres
+              </p>
             </div>
 
             <div>
