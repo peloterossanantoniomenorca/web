@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -47,7 +47,6 @@ function today() {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-
   return `${year}-${month}-${day}`;
 }
 
@@ -61,19 +60,14 @@ function formatMoney(value: string | number) {
 export default function PagosMultiplePage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [paymentType, setPaymentType] = useState<PaymentType | null>(null);
-
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [responsiblePlayerId, setResponsiblePlayerId] = useState('');
-
   const [paymentDate, setPaymentDate] = useState(today());
   const [pichangaDate, setPichangaDate] = useState('');
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>('YAPE');
-
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('YAPE');
   const [voucher, setVoucher] = useState<File | null>(null);
   const [voucherPreview, setVoucherPreview] = useState('');
   const [playerSearch, setPlayerSearch] = useState('');
-
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -99,15 +93,12 @@ export default function PagosMultiplePage() {
         const typesData = await typesResponse.json();
 
         if (!Array.isArray(playersData) || !Array.isArray(typesData)) {
-          throw new Error(
-            'La respuesta de la API no tiene el formato esperado.'
-          );
+          throw new Error('La respuesta de la API no tiene el formato esperado.');
         }
 
         const cuota = typesData.find(
           (item: PaymentType) =>
-            item.description?.trim().toLowerCase() ===
-            'pago cuota por partido'
+            item.description?.trim().toLowerCase() === 'pago cuota por partido'
         );
 
         if (!cuota) {
@@ -119,10 +110,7 @@ export default function PagosMultiplePage() {
         if (!cancelled) {
           setPlayers(
             playersData
-              .filter(
-                (player: Player) =>
-                  player.id && player.fullName
-              )
+              .filter((player: Player) => player.id && player.fullName)
               .sort((a: Player, b: Player) =>
                 a.fullName.localeCompare(b.fullName, 'es')
               )
@@ -132,9 +120,7 @@ export default function PagosMultiplePage() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error
-              ? err.message
-              : 'No se pudieron cargar los datos.'
+            err instanceof Error ? err.message : 'No se pudieron cargar los datos.'
           );
         }
       } finally {
@@ -143,7 +129,6 @@ export default function PagosMultiplePage() {
     }
 
     void loadData();
-
     return () => {
       cancelled = true;
     };
@@ -157,9 +142,19 @@ export default function PagosMultiplePage() {
 
     const url = URL.createObjectURL(voucher);
     setVoucherPreview(url);
-
     return () => URL.revokeObjectURL(url);
   }, [voucher]);
+
+  useEffect(() => {
+    if (!success) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSuccess(null);
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [success]);
 
   const amountPerPlayer = Number(paymentType?.amount ?? 0);
   const totalAmount = amountPerPlayer * selectedIds.length;
@@ -185,13 +180,7 @@ export default function PagosMultiplePage() {
       return;
     }
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'application/pdf',
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
+    if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
       setError('El comprobante debe ser JPG, PNG o PDF.');
       setVoucher(null);
       return;
@@ -240,7 +229,6 @@ export default function PagosMultiplePage() {
 
     try {
       const formData = new FormData();
-
       formData.append('mode', 'multiple');
       formData.append('playerIds', JSON.stringify(selectedIds));
       formData.append('responsiblePlayerId', responsiblePlayerId);
@@ -282,6 +270,15 @@ export default function PagosMultiplePage() {
     }
   }
 
+  const inputStyle = {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    padding: 12,
+    border: '1px solid #cbd5e1',
+    borderRadius: 10,
+    color: '#0f172a',
+  };
+
   return (
     <main className="container" style={{ paddingTop: 32, paddingBottom: 48 }}>
       <div style={{ maxWidth: 850, margin: '0 auto' }}>
@@ -302,7 +299,6 @@ export default function PagosMultiplePage() {
           <h1 style={{ fontSize: 30, fontWeight: 900, margin: '0 0 8px' }}>
             Registrar pago-Multiple
           </h1>
-
           <p style={{ color: '#64748b', margin: 0 }}>
             Registra la cuota por partido de varios peloteros en una sola
             operación. Cada jugador tendrá su propio pago pendiente.
@@ -330,100 +326,260 @@ export default function PagosMultiplePage() {
         )}
 
         {success && (
-          <section
+          <div
+            role="presentation"
+            onClick={() => setSuccess(null)}
             style={{
-              border: '1px solid #bbf7d0',
-              background: '#f0fdf4',
-              color: '#166534',
-              padding: 22,
-              borderRadius: 16,
-              marginBottom: 24,
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              background: 'rgba(15, 23, 42, 0.72)',
+              backdropFilter: 'blur(4px)',
+              overflowY: 'auto',
             }}
           >
-            <div
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="payment-success-title"
+              onClick={(event) => event.stopPropagation()}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                marginBottom: 12,
+                position: 'relative',
+                width: '100%',
+                maxWidth: 560,
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: '#fff',
+                color: '#0f172a',
+                borderRadius: 22,
+                padding: 24,
+                boxSizing: 'border-box',
+                boxShadow: '0 25px 80px rgba(0,0,0,0.3)',
               }}
             >
-              <CheckCircle2 size={28} />
-              <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
-                ¡Pagos registrados!
-              </h2>
-            </div>
+              <button
+                type="button"
+                aria-label="Cerrar ventana"
+                onClick={() => setSuccess(null)}
+                style={{
+                  position: 'absolute',
+                  top: 14,
+                  right: 14,
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  border: '1px solid #e2e8f0',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  fontSize: 23,
+                  color: '#64748b',
+                }}
+              >
+                ×
+              </button>
 
-            <p>{success.message}</p>
+              <div style={{ textAlign: 'center', paddingTop: 8 }}>
+                <div
+                  style={{
+                    width: 68,
+                    height: 68,
+                    borderRadius: '50%',
+                    background: '#dcfce7',
+                    color: '#15803d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 14px',
+                  }}
+                >
+                  <CheckCircle2 size={38} />
+                </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 12,
-                margin: '18px 0',
-              }}
-            >
-              <div>
-                <small>Peloteros registrados</small>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>
-                  {success.totalPlayers}
+                <h2
+                  id="payment-success-title"
+                  style={{ fontSize: 26, fontWeight: 900, margin: '0 0 8px' }}
+                >
+                  ¡Pagos registrados!
+                </h2>
+                <p style={{ color: '#64748b', margin: 0 }}>{success.message}</p>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: 12,
+                  margin: '22px 0',
+                }}
+              >
+                <div style={{ background: '#f1f5f9', padding: 15, borderRadius: 14 }}>
+                  <div style={{ color: '#64748b', fontSize: 13 }}>
+                    Peloteros registrados
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 900 }}>
+                    {success.totalPlayers}
+                  </div>
+                </div>
+
+                <div style={{ background: '#f0fdf4', padding: 15, borderRadius: 14 }}>
+                  <div style={{ color: '#64748b', fontSize: 13 }}>
+                    Total registrado
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 23,
+                      fontWeight: 900,
+                      color: '#15803d',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {formatMoney(success.totalAmount)}
+                  </div>
                 </div>
               </div>
-              <div>
-                <small>Importe por pelotero</small>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>
-                  {formatMoney(success.amountPerPlayer)}
+
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 17, fontWeight: 850, margin: '0 0 12px' }}>
+                  Detalle de peloteros
+                </h3>
+
+                <div
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 14,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {success.payments?.map((payment, index) => (
+                    <div
+                      key={payment.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: 13,
+                        borderBottom:
+                          index === success.payments.length - 1
+                            ? 'none'
+                            : '1px solid #e2e8f0',
+                      }}
+                    >
+                      <CheckCircle2
+                        size={21}
+                        color="#16a34a"
+                        style={{ flexShrink: 0 }}
+                      />
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 750, overflowWrap: 'anywhere' }}>
+                          {payment.player}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color:
+                              payment.status === 'APPROVED'
+                                ? '#15803d'
+                                : payment.status === 'REJECTED'
+                                  ? '#b91c1c'
+                                  : '#b45309',
+                            marginTop: 4,
+                          }}
+                        >
+                          {payment.status === 'PENDING'
+                            ? 'Pendiente de aprobación'
+                            : payment.status === 'APPROVED'
+                              ? 'Aprobado'
+                              : payment.status === 'REJECTED'
+                                ? 'Rechazado'
+                                : payment.status}
+                        </div>
+                      </div>
+
+                      <div style={{ fontWeight: 850, whiteSpace: 'nowrap' }}>
+                        {formatMoney(payment.amount)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div>
-                <small>Total del grupo</small>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>
-                  {formatMoney(success.totalAmount)}
+
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  padding: 15,
+                  fontSize: 14,
+                  display: 'grid',
+                  gap: 9,
+                }}
+              >
+                <div>
+                  <span style={{ color: '#64748b' }}>Responsable: </span>
+                  <strong>{success.responsible}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Método de pago: </span>
+                  <strong>{success.paymentMethod}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Concepto: </span>
+                  <strong>{success.paymentType}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Código del grupo: </span>
+                  <span style={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+                    {success.collectionId}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            <p>
-              <strong>Responsable:</strong> {success.responsible}
-            </p>
-            <p>
-              <strong>Método:</strong> {success.paymentMethod}
-            </p>
-            <p style={{ overflowWrap: 'anywhere' }}>
-              <strong>Código del grupo:</strong> {success.collectionId}
-            </p>
+              <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccess(null);
+                    setError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: 14,
+                    border: 'none',
+                    borderRadius: 12,
+                    background: '#15803d',
+                    color: '#fff',
+                    fontWeight: 800,
+                    fontSize: 15,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Registrar otro grupo
+                </button>
 
-            <h3 style={{ fontWeight: 800, marginTop: 20 }}>
-              Detalle de pagos
-            </h3>
-
-            <ul style={{ paddingLeft: 20 }}>
-              {success.payments?.map((payment) => (
-                <li key={payment.id} style={{ marginBottom: 6 }}>
-                  {payment.player} — {formatMoney(payment.amount)} —{' '}
-                  {payment.status}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              type="button"
-              onClick={() => setSuccess(null)}
-              style={{
-                marginTop: 12,
-                border: '1px solid #15803d',
-                background: '#15803d',
-                color: '#fff',
-                borderRadius: 10,
-                padding: '11px 16px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Registrar otro grupo
-            </button>
-          </section>
+                <button
+                  type="button"
+                  onClick={() => setSuccess(null)}
+                  style={{
+                    width: '100%',
+                    padding: 13,
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 12,
+                    background: '#fff',
+                    color: '#334155',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </section>
+          </div>
         )}
 
         <form
@@ -491,7 +647,6 @@ export default function PagosMultiplePage() {
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>
               2. Selecciona los peloteros
             </h2>
-
             <p style={{ color: '#64748b', fontSize: 14 }}>
               Marca solamente a quienes realizaron el pago. El responsable no
               se agrega automáticamente.
@@ -503,15 +658,7 @@ export default function PagosMultiplePage() {
               onChange={(event) => setPlayerSearch(event.target.value)}
               placeholder="Buscar pelotero por nombre..."
               disabled={loadingData || submitting}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: 12,
-                border: '1px solid #cbd5e1',
-                borderRadius: 10,
-                marginBottom: 12,
-                color: '#0f172a',
-              }}
+              style={{ ...inputStyle, marginBottom: 12 }}
             />
 
             <div
@@ -572,11 +719,7 @@ export default function PagosMultiplePage() {
                       checked={checked}
                       disabled={loadingData || submitting}
                       onChange={() => togglePlayer(player.id)}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: '#15803d',
-                      }}
+                      style={{ width: 18, height: 18, accentColor: '#15803d' }}
                     />
                     <span style={{ fontWeight: checked ? 700 : 500 }}>
                       {player.fullName}
@@ -597,28 +740,19 @@ export default function PagosMultiplePage() {
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>
               3. Responsable de recaudación
             </h2>
-
             <label
               htmlFor="responsiblePlayerId"
               style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}
             >
               Persona que recibió o reunió el dinero
             </label>
-
             <select
               id="responsiblePlayerId"
               value={responsiblePlayerId}
               onChange={(event) => setResponsiblePlayerId(event.target.value)}
               required
               disabled={loadingData || submitting}
-              style={{
-                width: '100%',
-                padding: 12,
-                border: '1px solid #cbd5e1',
-                borderRadius: 10,
-                background: '#fff',
-                color: '#0f172a',
-              }}
+              style={{ ...inputStyle, background: '#fff' }}
             >
               <option value="">Selecciona al responsable</option>
               {players.map((player) => (
@@ -627,7 +761,6 @@ export default function PagosMultiplePage() {
                 </option>
               ))}
             </select>
-
             <small style={{ display: 'block', color: '#64748b', marginTop: 8 }}>
               Elegir a esta persona no registra un pago a su nombre, salvo que
               también la marques en la lista de peloteros.
@@ -635,10 +768,7 @@ export default function PagosMultiplePage() {
           </section>
 
           <section>
-            <h2 style={{ fontSize: 19, fontWeight: 800 }}>
-              4. Fechas
-            </h2>
-
+            <h2 style={{ fontSize: 19, fontWeight: 800 }}>4. Fechas</h2>
             <div
               style={{
                 display: 'grid',
@@ -668,17 +798,9 @@ export default function PagosMultiplePage() {
                   onChange={(event) => setPaymentDate(event.target.value)}
                   required
                   disabled={submitting}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: 12,
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 10,
-                    color: '#0f172a',
-                  }}
+                  style={inputStyle}
                 />
               </div>
-
               <div>
                 <label
                   htmlFor="pichangaDate"
@@ -700,14 +822,7 @@ export default function PagosMultiplePage() {
                   onChange={(event) => setPichangaDate(event.target.value)}
                   required
                   disabled={submitting}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: 12,
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 10,
-                    color: '#0f172a',
-                  }}
+                  style={inputStyle}
                 />
                 <small style={{ color: '#64748b' }}>
                   Puede ser una fecha anterior a la fecha de pago.
@@ -720,7 +835,6 @@ export default function PagosMultiplePage() {
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>
               5. Método de pago
             </h2>
-
             <div
               style={{
                 display: 'grid',
@@ -734,9 +848,7 @@ export default function PagosMultiplePage() {
                   gap: 10,
                   alignItems: 'center',
                   padding: 16,
-                  border: `2px solid ${
-                    paymentMethod === 'YAPE' ? '#7c3aed' : '#e2e8f0'
-                  }`,
+                  border: `2px solid ${paymentMethod === 'YAPE' ? '#7c3aed' : '#e2e8f0'}`,
                   borderRadius: 12,
                   cursor: 'pointer',
                 }}
@@ -767,9 +879,7 @@ export default function PagosMultiplePage() {
                   gap: 10,
                   alignItems: 'center',
                   padding: 16,
-                  border: `2px solid ${
-                    paymentMethod === 'EFECTIVO' ? '#15803d' : '#e2e8f0'
-                  }`,
+                  border: `2px solid ${paymentMethod === 'EFECTIVO' ? '#15803d' : '#e2e8f0'}`,
                   borderRadius: 12,
                   cursor: 'pointer',
                 }}
@@ -802,7 +912,6 @@ export default function PagosMultiplePage() {
               <h2 style={{ fontSize: 19, fontWeight: 800 }}>
                 6. Comprobante de YAPE
               </h2>
-
               <div
                 style={{
                   padding: 16,
@@ -824,7 +933,6 @@ export default function PagosMultiplePage() {
                   <CloudUpload size={24} />
                   Seleccionar comprobante
                 </label>
-
                 <input
                   id="voucher"
                   type="file"
@@ -836,18 +944,15 @@ export default function PagosMultiplePage() {
                   disabled={submitting}
                   style={{ display: 'block', marginTop: 14, maxWidth: '100%' }}
                 />
-
                 <small style={{ display: 'block', color: '#64748b', marginTop: 10 }}>
                   Formatos JPG, PNG o PDF. Máximo 5 MB. El comprobante se
                   compartirá entre los pagos de este grupo.
                 </small>
-
                 {voucher && (
                   <p style={{ overflowWrap: 'anywhere' }}>
                     Archivo seleccionado: <strong>{voucher.name}</strong>
                   </p>
                 )}
-
                 {voucherPreview && (
                   <img
                     src={voucherPreview}
