@@ -90,6 +90,7 @@ model TipoEgreso {
 model Egreso {
   id                String     @id @default(cuid())
   idTipEgreso       String
+  detalle String?
   fecha             DateTime   @db.Timestamptz(6)
   monto             Decimal    @db.Decimal(12, 2)
   responsableEgreso String
