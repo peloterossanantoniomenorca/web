@@ -235,15 +235,13 @@ export default function PagosPage() {
       return;
     }
 
-    if (requierePichanga && pichangaDate < paymentDate) {
-      setError(
-        'La fecha de pichanga no puede ser anterior a la fecha del pago.'
-      );
-      return;
-    }
-
     const parsedAmount = Number(amount);
-    if (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+
+    if (
+      !amount.trim() ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount <= 0
+    ) {
       setError('Ingresa un monto válido mayor que cero.');
       return;
     }
@@ -864,7 +862,6 @@ export default function PagosPage() {
                         type="date"
                         className="input"
                         value={pichangaDate}
-                        min={paymentDate || undefined}
                         onChange={(event) =>
                           setPichangaDate(event.target.value)
                         }
