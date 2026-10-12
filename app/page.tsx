@@ -9,6 +9,7 @@ import {
   ArrowRight,
   FileText,
   Scale,
+  CalendarCheck,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -129,6 +130,23 @@ export default async function Home() {
                 <ArrowRight size={17} />
               </Link>
 
+              {/* NUEVA OPCIÓN: CONSULTA PÚBLICA DE ASISTENCIAS */}
+              <Link
+                href="/asistencias-peloteros"
+                className="btn"
+                style={{
+                  background: '#ffffff',
+                  color: '#075e46',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 800,
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                }}
+              >
+                <CalendarCheck size={18} />
+                Asistencias peloteros
+                <ArrowRight size={17} />
+              </Link>
+
               <Link
                 href="/pagos"
                 className="btn"
@@ -180,7 +198,8 @@ export default async function Home() {
                 marginTop: 13,
               }}
             >
-              Consulta pública de cuotas por partido y fechas pendientes.
+              Consulta pública de peloteros, asistencias, cuotas por
+              partido y fechas pendientes.
             </p>
           </div>
 
@@ -458,6 +477,39 @@ export default async function Home() {
                 </strong>
                 <small style={{ fontWeight: 500 }}>
                   Revisa los ingresos, egresos y el saldo acumulado del club.
+                </small>
+              </span>
+            </span>
+            <ArrowRight size={20} />
+          </Link>
+
+          <Link
+            href="/asistencias-peloteros"
+            className="card"
+            style={{
+              ...buttonStyle,
+              justifyContent: 'space-between',
+              padding: 20,
+              background: '#ecfdf5',
+              color: '#065f46',
+              border: '1px solid #bbf7d0',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <CalendarCheck size={24} />
+              <span>
+                <strong style={{ display: 'block', fontSize: 17 }}>
+                  Asistencias peloteros
+                </strong>
+                <small style={{ fontWeight: 500 }}>
+                  Consulta las fechas de pichanga, quién asistió y su estado de pago.
                 </small>
               </span>
             </span>
