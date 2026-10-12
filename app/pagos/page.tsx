@@ -65,6 +65,7 @@ export default function PagosPage() {
 
   const [playerId, setPlayerId] = useState('');
   const [paymentTypeId, setPaymentTypeId] = useState('');
+  const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>('YAPE');
 
@@ -241,6 +242,12 @@ export default function PagosPage() {
       return;
     }
 
+    const parsedAmount = Number(amount);
+    if (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError('Ingresa un monto válido mayor que cero.');
+      return;
+    }
+
     if (paymentMethod === 'YAPE' && !voucher) {
       setError('Adjunta el voucher del pago por Yape.');
       return;
@@ -254,6 +261,7 @@ export default function PagosPage() {
       formData.append('playerId', playerId);
       formData.append('paymentTypeId', paymentTypeId);
       formData.append('paymentDate', paymentDate);
+      formData.append('amount', parsedAmount.toFixed(2));
 
       if (requierePichanga) {
         formData.append('pichangaDate', pichangaDate);
@@ -283,7 +291,7 @@ export default function PagosPage() {
       setReceipt({
         player: selectedPlayer?.fullName || '',
         paymentType: selectedType.description,
-        amount: data.amount ?? selectedType.amount,
+        amount: String(data.amount ?? parsedAmount.toFixed(2)),
         paymentDate,
         pichangaDate: requierePichanga ? pichangaDate : '',
         status: 'Pendiente de aprobación',
@@ -292,6 +300,7 @@ export default function PagosPage() {
 
       setPlayerId('');
       setPaymentTypeId('');
+      setAmount('');
       setPaymentMethod('YAPE');
       setPaymentDate(today());
       setPichangaDate('');
@@ -585,6 +594,7 @@ export default function PagosPage() {
                       'pago cuota por partido';
 
                     setPaymentTypeId(nuevoTipoId);
+                    setAmount(nuevoTipo ? String(nuevoTipo.amount) : '');
 
                     if (!necesitaPichanga) {
                       setPichangaDate('');
@@ -746,16 +756,26 @@ export default function PagosPage() {
                 <div style={{ position: 'relative' }}>
                   <input
                     id="amount"
+                    name="amount"
+                    type="number"
                     className="input"
-                    value={
+                    min="0.01"
+                    step="0.01"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    readOnly={!selectedType || requierePichanga}
+                    aria-readonly={!selectedType || requierePichanga}
+                    placeholder={
                       selectedType
-                        ? formatMoney(selectedType.amount)
+                        ? 'Ingresa el monto'
                         : 'Selecciona un tipo de pago'
                     }
-                    readOnly
-                    aria-readonly="true"
+                    required
                     style={{
-                      background: '#f0fdf4',
+                      background:
+                        !selectedType || requierePichanga
+                          ? '#f0fdf4'
+                          : '#ffffff',
                       color: '#065f46',
                       fontWeight: 800,
                       fontSize: 18,
@@ -782,7 +802,11 @@ export default function PagosPage() {
                     marginTop: 6,
                   }}
                 >
-                  El monto se obtiene del tipo de pago seleccionado.
+                  {requierePichanga
+                    ? `Monto establecido en la base de datos: ${
+                        selectedType ? formatMoney(selectedType.amount) : '—'
+                      }. No editable para este tipo de pago.`
+                    : 'Monto cargado desde la base de datos. Puedes modificarlo para este tipo de pago.'}
                 </small>
               </div>
 
