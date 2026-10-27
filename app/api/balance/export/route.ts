@@ -60,7 +60,6 @@ function fechaEgreso(fecha: Date): string {
   }).format(fecha);
 }
 
-// Evita que caracteres especiales rompan el archivo XML de Excel.
 function escaparXML(valor: unknown): string {
   return String(valor ?? '')
     .replace(/&/g, '&amp;')
@@ -74,17 +73,45 @@ function celdaTexto(valor: unknown): string {
   return `<Cell><Data ss:Type="String">${escaparXML(valor)}</Data></Cell>`;
 }
 
-function celdaNumero(valor: number | string): string {
-  const numero = Number(valor);
-  const seguro = Number.isFinite(numero) ? numero : 0;
+function celdaNumero(valor: number): string {
+  const seguro = Number.isFinite(valor) ? valor : 0;
 
-  return `<Cell><Data ss:Type="Number">${seguro}</Data></Cell>`;
+  return `<Cell><Data ss:Type="Number">${seguro.toFixed(2)}</Data></Cell>`;
 }
 
 function filaExcel(celdas: string[], encabezado = false): string {
   const estilo = encabezado ? ' ss:StyleID="Encabezado"' : '';
   return `<Row${estilo}>${celdas.join('')}</Row>`;
 }
+
+function normalizarNombre(
+  nombre: string | null | undefined
+): string {
+  return (nombre ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function numero(valor: unknown): number {
+  const resultado = Number(valor ?? 0);
+  return Number.isFinite(resultado) ? resultado : 0;
+}
+
+type FilaBalance = {
+  fecha: string;
+  concepto: string;
+  descripcion: string;
+  idPelotero: string;
+  nombrePelotero: string;
+  montoCobrado: number;
+  montoPagado: number;
+  pendiente: number;
+  medioPago: string;
+  estado: string;
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -162,7 +189,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const [pagos, egresos] = await Promise.all([
+    const [pagos, egresos, peloteros] = await Promise.all([
       prisma.payment.findMany({
         where: filtroPagos,
         include: {
@@ -175,6 +202,7 @@ export async function GET(request: NextRequest) {
           paymentType: {
             select: {
               description: true,
+              amount: true,
             },
           },
         },
@@ -196,7 +224,110 @@ export async function GET(request: NextRequest) {
           fecha: 'desc',
         },
       }),
+
+      prisma.player.findMany({
+        select: {
+          id: true,
+          fullName: true,
+        },
+      }),
     ]);
+
+    // Índice de peloteros para identificar al responsable de un egreso.
+    const peloterosPorNombre = new Map<
+      string,
+      { id: string; fullName: string }
+    >();
+
+    for (const pelotero of peloteros) {
+      const clave = normalizarNombre(pelotero.fullName);
+
+      if (clave && !peloterosPorNombre.has(clave)) {
+        peloterosPorNombre.set(clave, pelotero);
+      }
+    }
+
+    const filasDatos: FilaBalance[] = [];
+
+    // =========================
+    // INGRESOS APROBADOS
+    // =========================
+    for (const pago of pagos) {
+      const descripcion =
+        pago.paymentType?.description ?? 'Sin concepto';
+
+      const esCuotaPartido =
+        normalizarNombre(descripcion) ===
+        normalizarNombre('Pago cuota por partido');
+
+      const montoPagado = numero(pago.amount);
+
+      // Cuota por partido: utiliza el importe configurado.
+      // Otros ingresos: el monto cobrado es igual al pagado.
+      const montoCobrado = esCuotaPartido
+        ? numero(pago.paymentType?.amount)
+        : montoPagado;
+
+      // Nunca mostrar un pendiente negativo.
+      const pendiente = Math.max(
+        0,
+        montoCobrado - montoPagado
+      );
+
+      filasDatos.push({
+        fecha: fechaPago(pago.paymentDate),
+        concepto: 'INGRESO',
+        descripcion,
+        idPelotero: pago.player?.id ?? pago.playerId ?? '',
+        nombrePelotero: pago.player?.fullName ?? '',
+        montoCobrado,
+        montoPagado,
+        pendiente,
+
+        // El modelo actual no confirma un campo de medio de pago
+        // para ingresos; por eso se deja vacío.
+        medioPago: '',
+
+        estado: 'APROBADO',
+      });
+    }
+
+    // =========================
+    // EGRESOS
+    // =========================
+    for (const egreso of egresos) {
+      const responsable = egreso.responsableEgreso ?? '';
+
+      const pelotero = peloterosPorNombre.get(
+        normalizarNombre(responsable)
+      );
+
+      filasDatos.push({
+        fecha: fechaEgreso(egreso.fecha),
+        concepto: 'EGRESO',
+        descripcion:
+          egreso.tipoEgreso?.descripcion ?? 'Sin concepto',
+
+        // Se asigna el ID si el responsable coincide con un pelotero.
+        idPelotero: pelotero?.id ?? '',
+        nombrePelotero: responsable,
+
+        montoCobrado: 0,
+        montoPagado: numero(egreso.monto),
+        pendiente: 0,
+
+        // Todos los egresos utilizan YAPE.
+        medioPago: 'YAPE',
+
+        // Todos los egresos deben aparecer como APROBADO.
+        estado: 'APROBADO',
+      });
+    }
+
+    // Orden descendente por fecha.
+    filasDatos.sort((a, b) =>
+      b.fecha.localeCompare(a.fecha)
+    );
 
     const encabezados = [
       'FECHA',
@@ -211,61 +342,24 @@ export async function GET(request: NextRequest) {
       'ESTADO',
     ];
 
-    const filas: string[] = [];
+    const filasXML = [
+      filaExcel(encabezados.map(celdaTexto), true),
 
-    filas.push(
-      filaExcel(encabezados.map(celdaTexto), true)
-    );
-
-    for (const pago of pagos) {
-      filas.push(
+      ...filasDatos.map((fila) =>
         filaExcel([
-          celdaTexto(fechaPago(pago.paymentDate)),
-          celdaTexto('INGRESO'),
-          celdaTexto(
-            pago.paymentType?.description ?? 'Sin concepto'
-          ),
-          celdaTexto(pago.player?.id ?? pago.playerId),
-          celdaTexto(pago.player?.fullName ?? ''),
-          celdaNumero(pago.amount?.toString() ?? 0),
-          celdaNumero(0),
-          celdaNumero(0),
-          celdaTexto(''),
-          celdaTexto('APROBADO'),
+          celdaTexto(fila.fecha),
+          celdaTexto(fila.concepto),
+          celdaTexto(fila.descripcion),
+          celdaTexto(fila.idPelotero),
+          celdaTexto(fila.nombrePelotero),
+          celdaNumero(fila.montoCobrado),
+          celdaNumero(fila.montoPagado),
+          celdaNumero(fila.pendiente),
+          celdaTexto(fila.medioPago),
+          celdaTexto(fila.estado),
         ])
-      );
-    }
-
-    for (const egreso of egresos) {
-      filas.push(
-        filaExcel([
-          celdaTexto(fechaEgreso(egreso.fecha)),
-          celdaTexto('EGRESO'),
-          celdaTexto(
-            egreso.tipoEgreso?.descripcion ?? 'Sin concepto'
-          ),
-          celdaTexto(''),
-          celdaTexto(egreso.responsableEgreso ?? ''),
-          celdaNumero(0),
-          celdaNumero(egreso.monto?.toString() ?? 0),
-          celdaNumero(0),
-          celdaTexto(''),
-          celdaTexto('REGISTRADO'),
-        ])
-      );
-    }
-
-    // Ordenar por fecha descendente, conservando el encabezado arriba.
-    const filasDatos = filas.slice(1).sort((a, b) => {
-      const extraerFecha = (fila: string) => {
-        const coincidencia = fila.match(
-          /<Data ss:Type="String">(\d{4}-\d{2}-\d{2})<\/Data>/
-        );
-        return coincidencia?.[1] ?? '';
-      };
-
-      return extraerFecha(b).localeCompare(extraerFecha(a));
-    });
+      ),
+    ];
 
     const contenidoXML = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -301,7 +395,7 @@ export async function GET(request: NextRequest) {
       <Column ss:Width="115"/>
       <Column ss:Width="120"/>
       <Column ss:Width="100"/>
-      ${[filas[0], ...filasDatos].join('\n      ')}
+      ${filasXML.join('\n      ')}
     </Table>
     <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
       <FreezePanes/>
@@ -318,8 +412,10 @@ export async function GET(request: NextRequest) {
     return new NextResponse(contenidoXML, {
       status: 200,
       headers: {
-        'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
-        'Content-Disposition': `attachment; filename="balance-${fechaArchivo}.xls"`,
+        'Content-Type':
+          'application/vnd.ms-excel; charset=utf-8',
+        'Content-Disposition':
+          `attachment; filename="balance-${fechaArchivo}.xls"`,
         'Cache-Control': 'no-store',
       },
     });
