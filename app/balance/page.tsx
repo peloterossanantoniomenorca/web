@@ -525,6 +525,21 @@ export default async function BalancePage({
             >
               Ver todo
             </Link>
+
+            <Link
+              href={`/api/balance/export?${new URLSearchParams({
+                ...(desde ? { desde } : {}),
+                ...(hasta ? { hasta } : {}),
+              }).toString()}`}
+              style={{
+                ...estilos.boton,
+                border: '1px solid #15803d',
+                backgroundColor: '#15803d',
+                color: '#ffffff',
+              }}
+            >
+              Exportar Excel
+            </Link>
           </form>
 
           {!rangoValido && (
