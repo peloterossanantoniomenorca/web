@@ -22,22 +22,22 @@ function fechaValida(fecha: string | null): boolean {
   );
 }
 
-function inicioPagoUTC(fecha: string): Date {
+function inicioUTC(fecha: string): Date {
   return new Date(`${fecha}T00:00:00.000Z`);
 }
 
 function siguienteDiaUTC(fecha: string): Date {
-  const resultado = inicioPagoUTC(fecha);
+  const resultado = inicioUTC(fecha);
   resultado.setUTCDate(resultado.getUTCDate() + 1);
   return resultado;
 }
 
-function inicioEgresoLima(fecha: string): Date {
+function inicioLima(fecha: string): Date {
   return new Date(`${fecha}T00:00:00-05:00`);
 }
 
 function siguienteDiaLima(fecha: string): Date {
-  const resultado = inicioEgresoLima(fecha);
+  const resultado = inicioLima(fecha);
   resultado.setUTCDate(resultado.getUTCDate() + 1);
   return resultado;
 }
@@ -51,13 +51,17 @@ function fechaPago(fecha: Date): string {
   }).format(fecha);
 }
 
-function fechaEgreso(fecha: Date): string {
+function fechaLima(fecha: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: ZONA_HORARIA,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   }).format(fecha);
+}
+
+function fechaSoloDate(fecha: Date): string {
+  return fecha.toISOString().slice(0, 10);
 }
 
 function escaparXML(valor: unknown): string {
@@ -73,10 +77,11 @@ function celdaTexto(valor: unknown): string {
   return `<Cell><Data ss:Type="String">${escaparXML(valor)}</Data></Cell>`;
 }
 
-function celdaNumero(valor: number): string {
+function celdaNumero(valor: number, estilo?: string): string {
   const seguro = Number.isFinite(valor) ? valor : 0;
+  const atributo = estilo ? ` ss:StyleID="${estilo}"` : '';
 
-  return `<Cell><Data ss:Type="Number">${seguro.toFixed(2)}</Data></Cell>`;
+  return `<Cell${atributo}><Data ss:Type="Number">${seguro.toFixed(2)}</Data></Cell>`;
 }
 
 function filaExcel(celdas: string[], encabezado = false): string {
@@ -101,7 +106,8 @@ function numero(valor: unknown): number {
 }
 
 type FilaBalance = {
-  fecha: string;
+  fechaPago: string;
+  fechaPichanga: string;
   concepto: string;
   descripcion: string;
   idPelotero: string;
@@ -111,12 +117,12 @@ type FilaBalance = {
   pendiente: number;
   medioPago: string;
   estado: string;
+  esEgreso: boolean;
 };
 
 export async function GET(request: NextRequest) {
   try {
     const parametros = request.nextUrl.searchParams;
-
     const desdeParametro = parametros.get('desde');
     const hastaParametro = parametros.get('hasta');
 
@@ -154,6 +160,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Pagos aprobados filtrados por fecha de pago.
     const filtroPagos: {
       status: 'APPROVED';
       paymentDate?: { gte?: Date; lt?: Date };
@@ -161,19 +168,10 @@ export async function GET(request: NextRequest) {
       status: 'APPROVED',
     };
 
-    const filtroEgresos: {
-      fecha?: { gte?: Date; lt?: Date };
-    } = {};
-
     if (desde) {
       filtroPagos.paymentDate = {
         ...filtroPagos.paymentDate,
-        gte: inicioPagoUTC(desde),
-      };
-
-      filtroEgresos.fecha = {
-        ...filtroEgresos.fecha,
-        gte: inicioEgresoLima(desde),
+        gte: inicioUTC(desde),
       };
     }
 
@@ -182,14 +180,79 @@ export async function GET(request: NextRequest) {
         ...filtroPagos.paymentDate,
         lt: siguienteDiaUTC(hasta),
       };
+    }
 
+    // Egresos filtrados por fecha de registro.
+    const filtroEgresos: {
+      fecha?: { gte?: Date; lt?: Date };
+    } = {};
+
+    if (desde) {
+      filtroEgresos.fecha = {
+        ...filtroEgresos.fecha,
+        gte: inicioLima(desde),
+      };
+    }
+
+    if (hasta) {
       filtroEgresos.fecha = {
         ...filtroEgresos.fecha,
         lt: siguienteDiaLima(hasta),
       };
     }
 
-    const [pagos, egresos, peloteros] = await Promise.all([
+    // Asistencias de peloteros que sí asistieron.
+    const filtroAsistencias: {
+      asistio: boolean;
+      fechaPichanga?: { gte?: Date; lt?: Date };
+    } = {
+      asistio: true,
+    };
+
+    if (desde) {
+      filtroAsistencias.fechaPichanga = {
+        ...filtroAsistencias.fechaPichanga,
+        gte: inicioUTC(desde),
+      };
+    }
+
+    if (hasta) {
+      filtroAsistencias.fechaPichanga = {
+        ...filtroAsistencias.fechaPichanga,
+        lt: siguienteDiaUTC(hasta),
+      };
+    }
+
+    // Cuotas aprobadas por fecha de pichanga.
+    const filtroCuotasAprobadas: {
+      status: 'APPROVED';
+      pichangaDate?: { gte?: Date; lt?: Date };
+    } = {
+      status: 'APPROVED',
+    };
+
+    if (desde) {
+      filtroCuotasAprobadas.pichangaDate = {
+        ...filtroCuotasAprobadas.pichangaDate,
+        gte: inicioLima(desde),
+      };
+    }
+
+    if (hasta) {
+      filtroCuotasAprobadas.pichangaDate = {
+        ...filtroCuotasAprobadas.pichangaDate,
+        lt: siguienteDiaLima(hasta),
+      };
+    }
+
+    const [
+      pagos,
+      egresos,
+      peloteros,
+      asistencias,
+      cuotasAprobadas,
+      tipoCuota,
+    ] = await Promise.all([
       prisma.payment.findMany({
         where: filtroPagos,
         include: {
@@ -231,9 +294,47 @@ export async function GET(request: NextRequest) {
           fullName: true,
         },
       }),
+
+      prisma.asistencia.findMany({
+        where: filtroAsistencias,
+        include: {
+          player: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
+        },
+        orderBy: {
+          fechaPichanga: 'desc',
+        },
+      }),
+
+      prisma.payment.findMany({
+        where: filtroCuotasAprobadas,
+        include: {
+          paymentType: {
+            select: {
+              description: true,
+            },
+          },
+        },
+      }),
+
+      prisma.paymentType.findFirst({
+        where: {
+          description: {
+            equals: 'Pago cuota por partido',
+            mode: 'insensitive',
+          },
+        },
+        select: {
+          amount: true,
+        },
+      }),
     ]);
 
-    // Índice de peloteros para identificar al responsable de un egreso.
+    // Índice de peloteros por nombre para identificar responsables.
     const peloterosPorNombre = new Map<
       string,
       { id: string; fullName: string }
@@ -247,11 +348,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Identificar cuotas aprobadas por pelotero y fecha de pichanga.
+    const cuotasPagadas = new Set<string>();
+
+    for (const pago of cuotasAprobadas) {
+      const descripcion = pago.paymentType?.description ?? '';
+      const fecha = pago.pichangaDate
+        ? fechaLima(pago.pichangaDate)
+        : '';
+
+      if (
+        normalizarNombre(descripcion) ===
+          normalizarNombre('Pago cuota por partido') &&
+        fecha
+      ) {
+        cuotasPagadas.add(`${pago.playerId}|${fecha}`);
+      }
+    }
+
     const filasDatos: FilaBalance[] = [];
 
-    // =========================
-    // INGRESOS APROBADOS
-    // =========================
+    // INGRESOS APROBADOS.
     for (const pago of pagos) {
       const descripcion =
         pago.paymentType?.description ?? 'Sin concepto';
@@ -262,20 +379,21 @@ export async function GET(request: NextRequest) {
 
       const montoPagado = numero(pago.amount);
 
-      // Cuota por partido: utiliza el importe configurado.
-      // Otros ingresos: el monto cobrado es igual al pagado.
       const montoCobrado = esCuotaPartido
         ? numero(pago.paymentType?.amount)
         : montoPagado;
 
-      // Nunca mostrar un pendiente negativo.
       const pendiente = Math.max(
         0,
         montoCobrado - montoPagado
       );
 
       filasDatos.push({
-        fecha: fechaPago(pago.paymentDate),
+        fechaPago: fechaPago(pago.paymentDate),
+        fechaPichanga:
+          esCuotaPartido && pago.pichangaDate
+            ? fechaLima(pago.pichangaDate)
+            : '',
         concepto: 'INGRESO',
         descripcion,
         idPelotero: pago.player?.id ?? pago.playerId ?? '',
@@ -283,54 +401,73 @@ export async function GET(request: NextRequest) {
         montoCobrado,
         montoPagado,
         pendiente,
-
-        // El modelo actual no confirma un campo de medio de pago
-        // para ingresos; por eso se deja vacío.
-        medioPago: '',
-
+        medioPago: pago.paymentMethod ?? '',
         estado: 'APROBADO',
+        esEgreso: false,
       });
     }
 
-    // =========================
-    // EGRESOS
-    // =========================
+    // ASISTENCIAS SIN CUOTA APROBADA.
+    const montoCuota = numero(tipoCuota?.amount);
+
+    for (const asistencia of asistencias) {
+      if (!asistencia.player) continue;
+
+      const fecha = fechaSoloDate(asistencia.fechaPichanga);
+      const clave = `${asistencia.playerId}|${fecha}`;
+
+      if (cuotasPagadas.has(clave)) continue;
+
+      filasDatos.push({
+        fechaPago: '',
+        fechaPichanga: fecha,
+        concepto: 'INGRESO',
+        descripcion: 'Pago cuota por partido',
+        idPelotero: asistencia.player.id,
+        nombrePelotero: asistencia.player.fullName,
+        montoCobrado: montoCuota,
+        montoPagado: 0,
+        pendiente: montoCuota,
+        medioPago: '',
+        estado: 'POR PAGAR',
+        esEgreso: false,
+      });
+    }
+
+    // EGRESOS.
     for (const egreso of egresos) {
       const responsable = egreso.responsableEgreso ?? '';
-
       const pelotero = peloterosPorNombre.get(
         normalizarNombre(responsable)
       );
 
       filasDatos.push({
-        fecha: fechaEgreso(egreso.fecha),
+        fechaPago: fechaLima(egreso.fecha),
+        fechaPichanga: '',
         concepto: 'EGRESO',
         descripcion:
           egreso.tipoEgreso?.descripcion ?? 'Sin concepto',
-
-        // Se asigna el ID si el responsable coincide con un pelotero.
         idPelotero: pelotero?.id ?? '',
         nombrePelotero: responsable,
-
         montoCobrado: 0,
         montoPagado: numero(egreso.monto),
         pendiente: 0,
-
-        // Todos los egresos utilizan YAPE.
         medioPago: 'YAPE',
-
-        // Todos los egresos deben aparecer como APROBADO.
         estado: 'APROBADO',
+        esEgreso: true,
       });
     }
 
-    // Orden descendente por fecha.
-    filasDatos.sort((a, b) =>
-      b.fecha.localeCompare(a.fecha)
-    );
+    // Orden descendente por fecha de pago o fecha de pichanga.
+    filasDatos.sort((a, b) => {
+      const fechaA = a.fechaPago || a.fechaPichanga;
+      const fechaB = b.fechaPago || b.fechaPichanga;
+      return fechaB.localeCompare(fechaA);
+    });
 
     const encabezados = [
-      'FECHA',
+      'FECHA DE PAGO',
+      'FECHA DE PICHANGA',
       'CONCEPTO (INGRESO O EGRESO)',
       'DESCRIPCION',
       'ID DEL PELOTERO',
@@ -347,14 +484,27 @@ export async function GET(request: NextRequest) {
 
       ...filasDatos.map((fila) =>
         filaExcel([
-          celdaTexto(fila.fecha),
+          celdaTexto(fila.fechaPago),
+          celdaTexto(fila.fechaPichanga),
           celdaTexto(fila.concepto),
           celdaTexto(fila.descripcion),
           celdaTexto(fila.idPelotero),
           celdaTexto(fila.nombrePelotero),
           celdaNumero(fila.montoCobrado),
-          celdaNumero(fila.montoPagado),
-          celdaNumero(fila.pendiente),
+
+          // Los importes de egresos en MONTO PAGADO van en rojo.
+          celdaNumero(
+            fila.montoPagado,
+            fila.esEgreso ? 'EgresoRojo' : undefined
+          ),
+
+          // Solo los pendientes mayores que cero van en rojo.
+          // Los valores 0.00 conservan el color normal.
+          celdaNumero(
+            fila.pendiente,
+            fila.pendiente > 0 ? 'PendienteRojo' : undefined
+          ),
+
           celdaTexto(fila.medioPago),
           celdaTexto(fila.estado),
         ])
@@ -382,10 +532,17 @@ export async function GET(request: NextRequest) {
       <Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
       <Interior ss:Color="#15803D" ss:Pattern="Solid"/>
     </Style>
+    <Style ss:ID="EgresoRojo">
+      <Font ss:FontName="Arial" ss:Size="10" ss:Color="#FF0000" ss:Bold="1"/>
+    </Style>
+    <Style ss:ID="PendienteRojo">
+      <Font ss:FontName="Arial" ss:Size="10" ss:Color="#FF0000" ss:Bold="1"/>
+    </Style>
   </Styles>
   <Worksheet ss:Name="Balance">
     <Table>
-      <Column ss:Width="85"/>
+      <Column ss:Width="100"/>
+      <Column ss:Width="115"/>
       <Column ss:Width="155"/>
       <Column ss:Width="180"/>
       <Column ss:Width="150"/>
