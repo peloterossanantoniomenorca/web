@@ -540,6 +540,21 @@ export default async function BalancePage({
             >
               Exportar Excel
             </Link>
+
+            <Link
+              href={`/balance/graficos?${new URLSearchParams({
+                ...(desde ? { mes: desde.slice(5, 7) } : {}),
+                ...(desde ? { anio: desde.slice(0, 4) } : {}),
+              }).toString()}`}
+              style={{
+                ...estilos.boton,
+                border: '1px solid #0f766e',
+                backgroundColor: '#0f766e',
+                color: '#ffffff',
+              }}
+            >
+              Ver gráficos
+            </Link>
           </form>
 
           {!rangoValido && (
