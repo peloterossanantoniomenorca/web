@@ -8,9 +8,7 @@ const ZONA_HORARIA = 'America/Lima';
 
 function fechaValida(fecha: string | null): boolean {
   if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
-
   const date = new Date(`${fecha}T12:00:00-05:00`);
-
   return (
     !Number.isNaN(date.getTime()) &&
     new Intl.DateTimeFormat('en-CA', {
@@ -22,6 +20,8 @@ function fechaValida(fecha: string | null): boolean {
   );
 }
 
+// Las fechas de pichanga son fechas de calendario: no deben convertirse
+// a la zona horaria de Lima porque eso puede restar un día.
 function inicioUTC(fecha: string): Date {
   return new Date(`${fecha}T00:00:00.000Z`);
 }
@@ -42,13 +42,10 @@ function siguienteDiaLima(fecha: string): Date {
   return resultado;
 }
 
+// La API de pagos guarda paymentDate como fecha de calendario a medianoche UTC.
+// Se extrae directamente YYYY-MM-DD para evitar cualquier cambio de día por zona horaria.
 function fechaPago(fecha: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(fecha);
+  return fecha.toISOString().slice(0, 10);
 }
 
 function fechaLima(fecha: Date): string {
@@ -80,7 +77,6 @@ function celdaTexto(valor: unknown): string {
 function celdaNumero(valor: number, estilo?: string): string {
   const seguro = Number.isFinite(valor) ? valor : 0;
   const atributo = estilo ? ` ss:StyleID="${estilo}"` : '';
-
   return `<Cell${atributo}><Data ss:Type="Number">${seguro.toFixed(2)}</Data></Cell>`;
 }
 
@@ -89,9 +85,7 @@ function filaExcel(celdas: string[], encabezado = false): string {
   return `<Row${estilo}>${celdas.join('')}</Row>`;
 }
 
-function normalizarNombre(
-  nombre: string | null | undefined
-): string {
+function normalizarNombre(nombre: string | null | undefined): string {
   return (nombre ?? '')
     .trim()
     .normalize('NFD')
@@ -125,48 +119,28 @@ export async function GET(request: NextRequest) {
     const parametros = request.nextUrl.searchParams;
     const desdeParametro = parametros.get('desde');
     const hastaParametro = parametros.get('hasta');
-
-    const desde =
-      desdeParametro && fechaValida(desdeParametro)
-        ? desdeParametro
-        : '';
-
-    const hasta =
-      hastaParametro && fechaValida(hastaParametro)
-        ? hastaParametro
-        : '';
+    const desde = desdeParametro && fechaValida(desdeParametro) ? desdeParametro : '';
+    const hasta = hastaParametro && fechaValida(hastaParametro) ? hastaParametro : '';
 
     if (desdeParametro && !desde) {
-      return NextResponse.json(
-        { error: 'La fecha desde no es válida.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'La fecha desde no es válida.' }, { status: 400 });
     }
-
     if (hastaParametro && !hasta) {
-      return NextResponse.json(
-        { error: 'La fecha hasta no es válida.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'La fecha hasta no es válida.' }, { status: 400 });
     }
-
     if (desde && hasta && desde > hasta) {
       return NextResponse.json(
-        {
-          error:
-            'La fecha desde no puede ser posterior a la fecha hasta.',
-        },
+        { error: 'La fecha desde no puede ser posterior a la fecha hasta.' },
         { status: 400 }
       );
     }
 
-    // Pagos aprobados filtrados por fecha de pago.
+    // Ingresos: paymentDate se guarda como fecha de calendario a medianoche UTC;
+    // los filtros usan límites UTC para que no se desplace el día.
     const filtroPagos: {
       status: 'APPROVED';
       paymentDate?: { gte?: Date; lt?: Date };
-    } = {
-      status: 'APPROVED',
-    };
+    } = { status: 'APPROVED' };
 
     if (desde) {
       filtroPagos.paymentDate = {
@@ -174,7 +148,6 @@ export async function GET(request: NextRequest) {
         gte: inicioUTC(desde),
       };
     }
-
     if (hasta) {
       filtroPagos.paymentDate = {
         ...filtroPagos.paymentDate,
@@ -182,18 +155,14 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Egresos filtrados por fecha de registro.
-    const filtroEgresos: {
-      fecha?: { gte?: Date; lt?: Date };
-    } = {};
-
+    // Egresos: el filtro usa la fecha de registro en hora de Lima.
+    const filtroEgresos: { fecha?: { gte?: Date; lt?: Date } } = {};
     if (desde) {
       filtroEgresos.fecha = {
         ...filtroEgresos.fecha,
         gte: inicioLima(desde),
       };
     }
-
     if (hasta) {
       filtroEgresos.fecha = {
         ...filtroEgresos.fecha,
@@ -201,21 +170,18 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Asistencias de peloteros que sí asistieron.
+    // Solo asistencias confirmadas: asistio debe ser true.
+    // Se filtran las fechas de pichanga como fechas de calendario (UTC).
     const filtroAsistencias: {
       asistio: boolean;
       fechaPichanga?: { gte?: Date; lt?: Date };
-    } = {
-      asistio: true,
-    };
-
+    } = { asistio: true };
     if (desde) {
       filtroAsistencias.fechaPichanga = {
         ...filtroAsistencias.fechaPichanga,
         gte: inicioUTC(desde),
       };
     }
-
     if (hasta) {
       filtroAsistencias.fechaPichanga = {
         ...filtroAsistencias.fechaPichanga,
@@ -223,143 +189,72 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Cuotas aprobadas por fecha de pichanga.
+    // Buscar cuotas aprobadas por fecha de pichanga, no por fecha de pago.
     const filtroCuotasAprobadas: {
       status: 'APPROVED';
       pichangaDate?: { gte?: Date; lt?: Date };
-    } = {
-      status: 'APPROVED',
-    };
-
+    } = { status: 'APPROVED' };
     if (desde) {
       filtroCuotasAprobadas.pichangaDate = {
         ...filtroCuotasAprobadas.pichangaDate,
-        gte: inicioLima(desde),
+        gte: inicioUTC(desde),
       };
     }
-
     if (hasta) {
       filtroCuotasAprobadas.pichangaDate = {
         ...filtroCuotasAprobadas.pichangaDate,
-        lt: siguienteDiaLima(hasta),
+        lt: siguienteDiaUTC(hasta),
       };
     }
 
-    const [
-      pagos,
-      egresos,
-      peloteros,
-      asistencias,
-      cuotasAprobadas,
-      tipoCuota,
-    ] = await Promise.all([
-      prisma.payment.findMany({
-        where: filtroPagos,
-        include: {
-          player: {
-            select: {
-              id: true,
-              fullName: true,
-            },
+    const [pagos, egresos, peloteros, asistencias, cuotasAprobadas, tipoCuota] =
+      await Promise.all([
+        prisma.payment.findMany({
+          where: filtroPagos,
+          include: {
+            player: { select: { id: true, fullName: true } },
+            paymentType: { select: { description: true, amount: true } },
           },
-          paymentType: {
-            select: {
-              description: true,
-              amount: true,
-            },
+          orderBy: { paymentDate: 'desc' },
+        }),
+        prisma.egreso.findMany({
+          where: filtroEgresos,
+          include: { tipoEgreso: { select: { descripcion: true } } },
+          orderBy: { fecha: 'desc' },
+        }),
+        prisma.player.findMany({ select: { id: true, fullName: true } }),
+        prisma.asistencia.findMany({
+          where: filtroAsistencias,
+          include: { player: { select: { id: true, fullName: true } } },
+          orderBy: { fechaPichanga: 'desc' },
+        }),
+        prisma.payment.findMany({
+          where: filtroCuotasAprobadas,
+          include: { paymentType: { select: { description: true } } },
+        }),
+        prisma.paymentType.findFirst({
+          where: {
+            description: { equals: 'Pago cuota por partido', mode: 'insensitive' },
           },
-        },
-        orderBy: {
-          paymentDate: 'desc',
-        },
-      }),
+          select: { amount: true },
+        }),
+      ]);
 
-      prisma.egreso.findMany({
-        where: filtroEgresos,
-        include: {
-          tipoEgreso: {
-            select: {
-              descripcion: true,
-            },
-          },
-        },
-        orderBy: {
-          fecha: 'desc',
-        },
-      }),
-
-      prisma.player.findMany({
-        select: {
-          id: true,
-          fullName: true,
-        },
-      }),
-
-      prisma.asistencia.findMany({
-        where: filtroAsistencias,
-        include: {
-          player: {
-            select: {
-              id: true,
-              fullName: true,
-            },
-          },
-        },
-        orderBy: {
-          fechaPichanga: 'desc',
-        },
-      }),
-
-      prisma.payment.findMany({
-        where: filtroCuotasAprobadas,
-        include: {
-          paymentType: {
-            select: {
-              description: true,
-            },
-          },
-        },
-      }),
-
-      prisma.paymentType.findFirst({
-        where: {
-          description: {
-            equals: 'Pago cuota por partido',
-            mode: 'insensitive',
-          },
-        },
-        select: {
-          amount: true,
-        },
-      }),
-    ]);
-
-    // Índice de peloteros por nombre para identificar responsables.
-    const peloterosPorNombre = new Map<
-      string,
-      { id: string; fullName: string }
-    >();
-
+    const peloterosPorNombre = new Map<string, { id: string; fullName: string }>();
     for (const pelotero of peloteros) {
       const clave = normalizarNombre(pelotero.fullName);
-
       if (clave && !peloterosPorNombre.has(clave)) {
         peloterosPorNombre.set(clave, pelotero);
       }
     }
 
-    // Identificar cuotas aprobadas por pelotero y fecha de pichanga.
+    // La fecha se normaliza sin convertirla a la zona horaria de Lima.
     const cuotasPagadas = new Set<string>();
-
     for (const pago of cuotasAprobadas) {
       const descripcion = pago.paymentType?.description ?? '';
-      const fecha = pago.pichangaDate
-        ? fechaLima(pago.pichangaDate)
-        : '';
-
+      const fecha = pago.pichangaDate ? fechaSoloDate(pago.pichangaDate) : '';
       if (
-        normalizarNombre(descripcion) ===
-          normalizarNombre('Pago cuota por partido') &&
+        normalizarNombre(descripcion) === normalizarNombre('Pago cuota por partido') &&
         fecha
       ) {
         cuotasPagadas.add(`${pago.playerId}|${fecha}`);
@@ -368,31 +263,21 @@ export async function GET(request: NextRequest) {
 
     const filasDatos: FilaBalance[] = [];
 
-    // INGRESOS APROBADOS.
+    // Ingresos aprobados.
     for (const pago of pagos) {
-      const descripcion =
-        pago.paymentType?.description ?? 'Sin concepto';
-
+      const descripcion = pago.paymentType?.description ?? 'Sin concepto';
       const esCuotaPartido =
-        normalizarNombre(descripcion) ===
-        normalizarNombre('Pago cuota por partido');
-
+        normalizarNombre(descripcion) === normalizarNombre('Pago cuota por partido');
       const montoPagado = numero(pago.amount);
-
       const montoCobrado = esCuotaPartido
         ? numero(pago.paymentType?.amount)
         : montoPagado;
-
-      const pendiente = Math.max(
-        0,
-        montoCobrado - montoPagado
-      );
 
       filasDatos.push({
         fechaPago: fechaPago(pago.paymentDate),
         fechaPichanga:
           esCuotaPartido && pago.pichangaDate
-            ? fechaLima(pago.pichangaDate)
+            ? fechaSoloDate(pago.pichangaDate)
             : '',
         concepto: 'INGRESO',
         descripcion,
@@ -400,22 +285,20 @@ export async function GET(request: NextRequest) {
         nombrePelotero: pago.player?.fullName ?? '',
         montoCobrado,
         montoPagado,
-        pendiente,
+        pendiente: Math.max(0, montoCobrado - montoPagado),
         medioPago: pago.paymentMethod ?? '',
         estado: 'APROBADO',
         esEgreso: false,
       });
     }
 
-    // ASISTENCIAS SIN CUOTA APROBADA.
+    // Añadir solo peloteros con asistencia confirmada y sin cuota aprobada.
     const montoCuota = numero(tipoCuota?.amount);
-
     for (const asistencia of asistencias) {
-      if (!asistencia.player) continue;
+      if (!asistencia.player || asistencia.asistio !== true) continue;
 
       const fecha = fechaSoloDate(asistencia.fechaPichanga);
       const clave = `${asistencia.playerId}|${fecha}`;
-
       if (cuotasPagadas.has(clave)) continue;
 
       filasDatos.push({
@@ -434,23 +317,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // EGRESOS.
+    // Egresos: MONTO PAGADO en rojo, medio de pago YAPE y estado APROBADO.
     for (const egreso of egresos) {
       const responsable = egreso.responsableEgreso ?? '';
-      const pelotero = peloterosPorNombre.get(
-        normalizarNombre(responsable)
-      );
+      const pelotero = peloterosPorNombre.get(normalizarNombre(responsable));
+      const montoPagado = numero(egreso.monto);
 
       filasDatos.push({
         fechaPago: fechaLima(egreso.fecha),
         fechaPichanga: '',
         concepto: 'EGRESO',
-        descripcion:
-          egreso.tipoEgreso?.descripcion ?? 'Sin concepto',
+        descripcion: egreso.tipoEgreso?.descripcion ?? 'Sin concepto',
         idPelotero: pelotero?.id ?? '',
         nombrePelotero: responsable,
         montoCobrado: 0,
-        montoPagado: numero(egreso.monto),
+        montoPagado,
         pendiente: 0,
         medioPago: 'YAPE',
         estado: 'APROBADO',
@@ -458,7 +339,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Orden descendente por fecha de pago o fecha de pichanga.
     filasDatos.sort((a, b) => {
       const fechaA = a.fechaPago || a.fechaPichanga;
       const fechaB = b.fechaPago || b.fechaPichanga;
@@ -481,7 +361,6 @@ export async function GET(request: NextRequest) {
 
     const filasXML = [
       filaExcel(encabezados.map(celdaTexto), true),
-
       ...filasDatos.map((fila) =>
         filaExcel([
           celdaTexto(fila.fechaPago),
@@ -491,20 +370,12 @@ export async function GET(request: NextRequest) {
           celdaTexto(fila.idPelotero),
           celdaTexto(fila.nombrePelotero),
           celdaNumero(fila.montoCobrado),
-
-          // Los importes de egresos en MONTO PAGADO van en rojo.
-          celdaNumero(
-            fila.montoPagado,
-            fila.esEgreso ? 'EgresoRojo' : undefined
-          ),
-
-          // Solo los pendientes mayores que cero van en rojo.
-          // Los valores 0.00 conservan el color normal.
+          celdaNumero(fila.montoPagado, fila.esEgreso ? 'EgresoRojo' : undefined),
+          // Solo pendientes mayores que cero se pintan en rojo.
           celdaNumero(
             fila.pendiente,
             fila.pendiente > 0 ? 'PendienteRojo' : undefined
           ),
-
           celdaTexto(fila.medioPago),
           celdaTexto(fila.estado),
         ])
@@ -565,20 +436,16 @@ export async function GET(request: NextRequest) {
 </Workbook>`;
 
     const fechaArchivo = new Date().toISOString().slice(0, 10);
-
     return new NextResponse(contenidoXML, {
       status: 200,
       headers: {
-        'Content-Type':
-          'application/vnd.ms-excel; charset=utf-8',
-        'Content-Disposition':
-          `attachment; filename="balance-${fechaArchivo}.xls"`,
+        'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
+        'Content-Disposition': `attachment; filename="balance-${fechaArchivo}.xls"`,
         'Cache-Control': 'no-store',
       },
     });
   } catch (error) {
     console.error('Error exportando balance a Excel:', error);
-
     return NextResponse.json(
       { error: 'No se pudo exportar el balance a Excel.' },
       { status: 500 }
