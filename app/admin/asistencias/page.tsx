@@ -168,13 +168,13 @@ export default function AsistenciasPage() {
     }
 
     const mensaje = [
-      `ASISTENCIA DE PICHANGA: ${formatDate(fecha)}`,
+      `*ASISTENCIA DE PICHANGA:* ${formatDate(fecha)}`,
       '',
-      'PELOTEROS QUE ASISTIERON:',
+      '*PELOTEROS QUE ASISTIERON:*',
       '',
       ...nombresAsistentes,
       '',
-      `TOTAL DE ASISTENTES: ${nombresAsistentes.length}`,
+      `*TOTAL DE ASISTENTES:* ${nombresAsistentes.length}`,
     ].join('\n');
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
