@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Shirt,
   CalendarDays,
@@ -9,18 +9,25 @@ import {
   LoaderCircle,
   Shuffle,
   AlertCircle,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
 
-type Resultado = {
+type Pelotero = {
+  id: string;
+  fullName: string;
+  jerseyNumber: number;
+};
+
+type Asignacion = {
   id: string;
   fechaPichanga: string;
   estado: string;
-  pelotero: {
-    id: string;
-    fullName: string;
-    jerseyNumber: number;
-  };
+  createdAt: string;
+  pelotero: Pelotero;
 };
+
+type RegistroHistorial = Asignacion;
 
 function obtenerFechaActual() {
   const hoy = new Date();
@@ -40,14 +47,94 @@ function formatearFecha(fecha: string) {
   });
 }
 
+function formatearFechaCorta(fecha: string) {
+  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function colorEstado(estado: string) {
+  if (estado === 'REALIZADO') {
+    return {
+      background: '#dcfce7',
+      color: '#166534',
+    };
+  }
+
+  if (estado === 'REASIGNADO') {
+    return {
+      background: '#f1f5f9',
+      color: '#475569',
+    };
+  }
+
+  return {
+    background: '#fef3c7',
+    color: '#92400e',
+  };
+}
+
 export default function LavarChalecosClient() {
   const [fecha, setFecha] = useState(obtenerFechaActual());
   const [loading, setLoading] = useState(false);
+  const [consultando, setConsultando] = useState(true);
+  const [reasignando, setReasignando] = useState(false);
+
   const [error, setError] = useState('');
-  const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [mensaje, setMensaje] = useState('');
+
+  const [resultado, setResultado] = useState<Asignacion | null>(null);
+  const [asistentes, setAsistentes] = useState<Pelotero[]>([]);
+  const [historial, setHistorial] = useState<RegistroHistorial[]>([]);
+
   const [criterio, setCriterio] = useState('');
   const [totalAsistentes, setTotalAsistentes] = useState(0);
   const [cantidadCandidatos, setCantidadCandidatos] = useState(0);
+
+  const [nuevoPlayerId, setNuevoPlayerId] = useState('');
+
+  const cargarDatos = useCallback(async (fechaConsulta: string) => {
+    setConsultando(true);
+    setError('');
+    setMensaje('');
+
+    try {
+      const response = await fetch(
+        `/api/admin/lavar-chalecos?fecha=${encodeURIComponent(fechaConsulta)}`,
+        { cache: 'no-store' }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'No se pudo consultar la información.');
+      }
+
+      setResultado(data.asignacion);
+      setAsistentes(data.asistentes || []);
+      setHistorial(data.historial || []);
+      setNuevoPlayerId('');
+    } catch (err) {
+      setResultado(null);
+      setAsistentes([]);
+      setHistorial([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo consultar la información.'
+      );
+    } finally {
+      setConsultando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (fecha) {
+      cargarDatos(fecha);
+    }
+  }, [fecha, cargarDatos]);
 
   async function asignarPelotero() {
     if (!fecha) {
@@ -63,7 +150,7 @@ export default function LavarChalecosClient() {
 
     setLoading(true);
     setError('');
-    setResultado(null);
+    setMensaje('');
 
     try {
       const response = await fetch('/api/admin/lavar-chalecos', {
@@ -71,21 +158,22 @@ export default function LavarChalecosClient() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          fechaPichanga: fecha,
-        }),
+        body: JSON.stringify({ fechaPichanga: fecha }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        await cargarDatos(fecha);
         throw new Error(data.error || 'No se pudo realizar el sorteo.');
       }
 
-      setResultado(data.asignacion);
       setCriterio(data.criterio);
       setTotalAsistentes(data.totalAsistentes);
       setCantidadCandidatos(data.cantidadCandidatos);
+      setMensaje('El sorteo se realizó correctamente.');
+
+      await cargarDatos(fecha);
     } catch (err) {
       setError(
         err instanceof Error
@@ -97,10 +185,74 @@ export default function LavarChalecosClient() {
     }
   }
 
+  async function reasignarPelotero() {
+    if (!resultado || !nuevoPlayerId) {
+      setError('Selecciona al nuevo pelotero responsable.');
+      return;
+    }
+
+    const nuevoPelotero = asistentes.find(
+      (item) => item.id === nuevoPlayerId
+    );
+
+    if (!nuevoPelotero) {
+      setError('El pelotero seleccionado no está disponible.');
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Confirmas reasignar el lavado de ${resultado.pelotero.fullName} a ${nuevoPelotero.fullName}?`
+    );
+
+    if (!confirmar) return;
+
+    setReasignando(true);
+    setError('');
+    setMensaje('');
+
+    try {
+      const response = await fetch('/api/admin/lavar-chalecos', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          asignacionId: resultado.id,
+          playerId: nuevoPlayerId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'No se pudo realizar la reasignación.');
+      }
+
+      setMensaje(
+        `La responsabilidad fue reasignada a ${nuevoPelotero.fullName}.`
+      );
+
+      setNuevoPlayerId('');
+      await cargarDatos(fecha);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Ocurrió un error al reasignar.'
+      );
+    } finally {
+      setReasignando(false);
+    }
+  }
+
+  const opcionesReasignacion = asistentes.filter(
+    (pelotero) => pelotero.id !== resultado?.pelotero.id
+  );
+
   return (
     <main
       style={{
-        maxWidth: 900,
+        maxWidth: 1000,
         margin: '0 auto',
         padding: '28px 20px 50px',
       }}
@@ -138,6 +290,7 @@ export default function LavarChalecosClient() {
         </div>
       </div>
 
+      {/* SELECCIÓN DE FECHA */}
       <section
         style={{
           background: '#ffffff',
@@ -177,12 +330,8 @@ export default function LavarChalecosClient() {
             id="fechaPichanga"
             type="date"
             value={fecha}
-            onChange={(e) => {
-              setFecha(e.target.value);
-              setResultado(null);
-              setError('');
-            }}
-            disabled={loading}
+            onChange={(e) => setFecha(e.target.value)}
+            disabled={loading || reasignando}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -199,17 +348,25 @@ export default function LavarChalecosClient() {
         <button
           type="button"
           onClick={asignarPelotero}
-          disabled={loading || !fecha}
+          disabled={
+            loading ||
+            reasignando ||
+            consultando ||
+            !fecha ||
+            Boolean(resultado)
+          }
           style={{
             width: '100%',
             minHeight: 48,
             border: 'none',
             borderRadius: 10,
-            background: loading ? '#94a3b8' : '#047857',
+            background:
+              loading || consultando || resultado ? '#94a3b8' : '#047857',
             color: '#ffffff',
             fontSize: 16,
             fontWeight: 700,
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor:
+              loading || consultando || resultado ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -220,6 +377,16 @@ export default function LavarChalecosClient() {
             <>
               <LoaderCircle size={20} />
               Realizando sorteo...
+            </>
+          ) : consultando ? (
+            <>
+              <LoaderCircle size={20} />
+              Consultando fecha...
+            </>
+          ) : resultado ? (
+            <>
+              <CheckCircle2 size={20} />
+              Ya existe una asignación
             </>
           ) : (
             <>
@@ -242,6 +409,7 @@ export default function LavarChalecosClient() {
         </p>
       </section>
 
+      {/* MENSAJES */}
       {error && (
         <div
           role="alert"
@@ -262,44 +430,106 @@ export default function LavarChalecosClient() {
         </div>
       )}
 
-      {resultado && (
+      {mensaje && (
+        <div
+          role="status"
+          style={{
+            marginTop: 20,
+            padding: 15,
+            borderRadius: 10,
+            background: '#f0fdf4',
+            color: '#166534',
+            border: '1px solid #bbf7d0',
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <CheckCircle2 size={21} />
+          {mensaje}
+        </div>
+      )}
+
+      {/* CARGANDO */}
+      {consultando && (
+        <div
+          style={{
+            marginTop: 22,
+            padding: 22,
+            textAlign: 'center',
+            color: '#64748b',
+          }}
+        >
+          <LoaderCircle
+            size={22}
+            style={{ verticalAlign: 'middle', marginRight: 8 }}
+          />
+          Consultando asignación e historial...
+        </div>
+      )}
+
+      {/* TARJETA DE ASIGNACIÓN EXISTENTE */}
+      {!consultando && resultado && (
         <section
           style={{
             marginTop: 24,
-            padding: 25,
+            padding: 24,
             borderRadius: 16,
-            background: '#f0fdf4',
+            background: '#ffffff',
             border: '1px solid #bbf7d0',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.04)',
           }}
         >
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 9,
-              color: '#166534',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
               marginBottom: 18,
             }}
           >
-            <CheckCircle2 size={25} />
-            <h2 style={{ margin: 0, fontSize: 20 }}>
-              ¡Pelotero asignado!
-            </h2>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                color: '#166534',
+              }}
+            >
+              <CheckCircle2 size={24} />
+              <h2 style={{ margin: 0, fontSize: 20 }}>
+                Detalle de asignación
+              </h2>
+            </div>
+
+            <span
+              style={{
+                ...colorEstado(resultado.estado),
+                padding: '6px 12px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              {resultado.estado}
+            </span>
           </div>
 
-          <p style={{ color: '#166534', margin: '0 0 18px' }}>
-            {formatearFecha(resultado.fechaPichanga)}
+          <p style={{ color: '#64748b', margin: '0 0 18px' }}>
+            Pichanga del {formatearFecha(resultado.fechaPichanga)}
           </p>
 
           <div
             style={{
-              background: '#ffffff',
+              background: '#f0fdf4',
               borderRadius: 13,
               padding: 22,
               display: 'flex',
               alignItems: 'center',
               gap: 18,
-              border: '1px solid #bbf7d0',
+              border: '1px solid #dcfce7',
             }}
           >
             <div
@@ -340,60 +570,230 @@ export default function LavarChalecosClient() {
               >
                 {resultado.pelotero.fullName}
               </h3>
-              <span
-                style={{
-                  display: 'inline-block',
-                  marginTop: 9,
-                  padding: '5px 11px',
-                  borderRadius: 20,
-                  background: '#fef3c7',
-                  color: '#92400e',
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                PENDIENTE
-              </span>
+              <p style={{ color: '#64748b', fontSize: 13, margin: '6px 0 0' }}>
+                Camiseta N.º {resultado.pelotero.jerseyNumber}
+              </p>
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 18,
-              marginTop: 20,
-              color: '#166534',
-              fontSize: 14,
-            }}
-          >
-            <span>
-              <Users size={16} style={{ verticalAlign: 'middle' }} />{' '}
-              {totalAsistentes} asistentes
-            </span>
+          {/* REASIGNACIÓN */}
+          {resultado.estado === 'PENDIENTE' && (
+            <div
+              style={{
+                marginTop: 22,
+                padding: 18,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 12,
+              }}
+            >
+              <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>
+                Reasignar responsable
+              </h3>
 
-            <span>
-              {cantidadCandidatos} candidatos en el sorteo
-            </span>
-          </div>
+              <p
+                style={{
+                  color: '#64748b',
+                  fontSize: 13,
+                  margin: '0 0 14px',
+                }}
+              >
+                Selecciona otro pelotero que haya asistido a esta pichanga.
+                La asignación actual quedará registrada como REASIGNADO.
+              </p>
 
-          <p
-            style={{
-              color: '#166534',
-              fontSize: 13,
-              marginBottom: 0,
-            }}
-          >
-            Criterio aplicado: {
-              criterio === 'SIN_HISTORIAL'
-                ? 'Peloteros sin historial'
-                : criterio === 'MAYOR_DEUDA'
-                  ? 'Mayor cantidad de asignaciones pendientes'
-                  : 'Rotación equitativa'
-            }
-          </p>
+              {opcionesReasignacion.length > 0 ? (
+                <>
+                  <label
+                    htmlFor="nuevoPelotero"
+                    style={{
+                      display: 'block',
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Nuevo pelotero responsable
+                  </label>
+
+                  <select
+                    id="nuevoPelotero"
+                    value={nuevoPlayerId}
+                    onChange={(e) => setNuevoPlayerId(e.target.value)}
+                    disabled={reasignando}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: 12,
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 9,
+                      background: '#fff',
+                      fontSize: 15,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <option value="">Seleccionar pelotero...</option>
+                    {opcionesReasignacion.map((pelotero) => (
+                      <option key={pelotero.id} value={pelotero.id}>
+                        {pelotero.fullName} - Camiseta {pelotero.jerseyNumber}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={reasignarPelotero}
+                    disabled={reasignando || !nuevoPlayerId}
+                    style={{
+                      width: '100%',
+                      minHeight: 46,
+                      border: 'none',
+                      borderRadius: 9,
+                      background:
+                        reasignando || !nuevoPlayerId ? '#94a3b8' : '#b45309',
+                      color: '#fff',
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor:
+                        reasignando || !nuevoPlayerId
+                          ? 'not-allowed'
+                          : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 9,
+                    }}
+                  >
+                    {reasignando ? (
+                      <>
+                        <LoaderCircle size={19} />
+                        Reasignando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={19} />
+                        Reasignar
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <p style={{ color: '#b45309', margin: 0, fontSize: 14 }}>
+                  No hay otro pelotero asistente disponible para reasignar.
+                </p>
+              )}
+            </div>
+          )}
+
+          {resultado.estado === 'REALIZADO' && (
+            <p style={{ color: '#166534', marginBottom: 0, fontSize: 14 }}>
+              Este lavado ya fue marcado como realizado y no se puede
+              reasignar desde esta pantalla.
+            </p>
+          )}
+
+          {resultado.estado === 'REASIGNADO' && (
+            <p style={{ color: '#64748b', marginBottom: 0, fontSize: 14 }}>
+              Este registro fue reasignado. No es la asignación pendiente
+              vigente.
+            </p>
+          )}
         </section>
       )}
+
+      {/* ÚLTIMOS 10 REGISTROS */}
+      <section
+        style={{
+          marginTop: 30,
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 16,
+          padding: 22,
+          boxShadow: '0 4px 15px rgba(0,0,0,0.04)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 18,
+          }}
+        >
+          <Clock size={22} color="#166534" />
+          <div>
+            <h2 style={{ margin: 0, fontSize: 19 }}>
+              Últimos 10 registros
+            </h2>
+            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+              Historial de asignaciones de lavado de chalecos
+            </p>
+          </div>
+        </div>
+
+        {historial.length === 0 ? (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>
+            Todavía no existen registros de lavado de chalecos.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                minWidth: 600,
+                fontSize: 14,
+              }}
+            >
+              <thead>
+                <tr style={{ background: '#f8fafc', textAlign: 'left' }}>
+                  <th style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+                    Fecha pichanga
+                  </th>
+                  <th style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+                    Pelotero
+                  </th>
+                  <th style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+                    N.º
+                  </th>
+                  <th style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {historial.map((registro) => (
+                  <tr key={registro.id}>
+                    <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9' }}>
+                      {formatearFechaCorta(registro.fechaPichanga)}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9', fontWeight: 600 }}>
+                      {registro.pelotero.fullName}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9' }}>
+                      {registro.pelotero.jerseyNumber}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9' }}>
+                      <span
+                        style={{
+                          ...colorEstado(registro.estado),
+                          display: 'inline-block',
+                          padding: '5px 10px',
+                          borderRadius: 20,
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {registro.estado}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
