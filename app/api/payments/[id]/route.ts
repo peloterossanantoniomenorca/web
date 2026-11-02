@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-import { getSession } from '@/lib/auth';
+import { getSession, normalizeRole } from '@/lib/auth';
 
 const TIPO_CUOTA_PARTIDO = 'Pago cuota por partido';
 
@@ -12,7 +12,7 @@ export async function PATCH(
   try {
     const session = await getSession();
 
-    if (!session) {
+    if (!session || normalizeRole(session.payload.role) !== 'ADMIN') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
