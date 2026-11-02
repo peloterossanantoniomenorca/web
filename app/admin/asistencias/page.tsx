@@ -9,6 +9,8 @@ import {
   Save,
   Users,
   XCircle,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 type Player = {
@@ -33,6 +35,12 @@ type AttendanceRow = {
   teniaRegistro: boolean;
 };
 
+type DeudaPelotero = {
+  playerId: string;
+  fullName: string;
+  fechas: string[];
+};
+
 function today() {
   const date = new Date();
   const year = date.getFullYear();
@@ -54,6 +62,8 @@ export default function AsistenciasPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deudas, setDeudas] = useState<DeudaPelotero[]>([]);
+  const [mostrarPopup, setMostrarPopup] = useState(false);
 
   const cargarAsistencias = useCallback(async () => {
     setLoading(true);
@@ -146,6 +156,8 @@ export default function AsistenciasPage() {
     setSaving(true);
     setError('');
     setSuccess('');
+    setMostrarPopup(false);
+    setDeudas([]);
 
     try {
       const asistenciasModificadas = rows
@@ -155,10 +167,9 @@ export default function AsistenciasPage() {
           asistio: row.asistio,
         }));
 
-      if (asistenciasModificadas.length === 0) {
-        setSuccess('No hay cambios de asistencia que guardar.');
-        return;
-      }
+      const playerIdsAsistieron = rows
+        .filter((row) => row.asistio)
+        .map((row) => row.playerId);
 
       const response = await fetch('/api/asistencias', {
         method: 'POST',
@@ -168,6 +179,7 @@ export default function AsistenciasPage() {
         body: JSON.stringify({
           fecha,
           asistencias: asistenciasModificadas,
+          playerIdsAsistieron,
         }),
       });
 
@@ -179,11 +191,22 @@ export default function AsistenciasPage() {
         );
       }
 
-      setSuccess(
-        `Cambios guardados correctamente para el ${formatDate(fecha)}.`
-      );
-
       await cargarAsistencias();
+
+      const deudasEncontradas: DeudaPelotero[] = data.deudas || [];
+
+      if (deudasEncontradas.length > 0) {
+        setDeudas(deudasEncontradas);
+        setMostrarPopup(true);
+
+        setSuccess(
+          `Asistencia guardada correctamente para el ${formatDate(fecha)}.`
+        );
+      } else {
+        setSuccess(
+          `Asistencia guardada correctamente para el ${formatDate(fecha)}. No se encontraron cuotas pendientes de fechas anteriores entre los asistentes.`
+        );
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -195,12 +218,9 @@ export default function AsistenciasPage() {
     }
   }
 
-  // Contadores de asistencia.
   const asistentes = rows.filter((row) => row.asistio).length;
   const ausentes = rows.length - asistentes;
 
-  // Solo cuentan los peloteros que asistieron a la fecha seleccionada.
-  // Los ausentes no se consideran cuotas pendientes ni pagadas.
   const pendientes = rows.filter(
     (row) => row.asistio && row.estadoPago !== 'PAGADO'
   ).length;
@@ -208,6 +228,11 @@ export default function AsistenciasPage() {
   const pagados = rows.filter(
     (row) => row.asistio && row.estadoPago === 'PAGADO'
   ).length;
+
+  const totalFechasDeuda = deudas.reduce(
+    (total, jugador) => total + jugador.fechas.length,
+    0
+  );
 
   const thStyle = {
     textAlign: 'left' as const,
@@ -320,7 +345,10 @@ export default function AsistenciasPage() {
                 type="date"
                 className="input"
                 value={fecha}
-                onChange={(event) => setFecha(event.target.value)}
+                onChange={(event) => {
+                  setFecha(event.target.value);
+                  setMostrarPopup(false);
+                }}
                 style={{ paddingLeft: 42 }}
                 required
               />
@@ -611,14 +639,246 @@ export default function AsistenciasPage() {
               Pagados consideran solamente a los peloteros que asistieron
               a la fecha seleccionada. Una cuota cuenta como pagada cuando
               el pago correspondiente está aprobado y asociado a esa fecha.
-              Solo el concepto «Pago cuota por partido» debe contar como
-              cuota; las donaciones y otros conceptos no deben incluirse.
-              Guarda los cambios de asistencia para conservarlos en la base
-              de datos.
+              Solo el concepto «Pago cuota por partido» cuenta como cuota;
+              las donaciones y otros conceptos no deben incluirse.
             </div>
           )}
         </section>
       </div>
+
+      {mostrarPopup && (
+        <div
+          role="presentation"
+          onClick={() => setMostrarPopup(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-deudas"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 580,
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              background: '#ffffff',
+              borderRadius: 18,
+              padding: 24,
+              boxShadow: '0 25px 60px rgba(0,0,0,0.25)',
+              color: '#12352b',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: '#fef3c7',
+                    color: '#b45309',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle size={24} />
+                </div>
+
+                <div>
+                  <h2
+                    id="titulo-deudas"
+                    style={{ margin: '2px 0 5px', fontSize: 21 }}
+                  >
+                    Peloteros con cuotas pendientes
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: 0,
+                      color: '#64748b',
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    La asistencia se guardó correctamente. Estos asistentes
+                    tienen deudas de pichangas anteriores.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMostrarPopup(false)}
+                aria-label="Cerrar popup"
+                style={{
+                  border: 0,
+                  background: 'transparent',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 10,
+                margin: '20px 0',
+              }}
+            >
+              <div
+                style={{
+                  background: '#fff7ed',
+                  borderRadius: 12,
+                  padding: 13,
+                }}
+              >
+                <div style={{ color: '#9a3412', fontSize: 12 }}>
+                  Peloteros con deuda
+                </div>
+                <strong style={{ fontSize: 25, color: '#9a3412' }}>
+                  {deudas.length}
+                </strong>
+              </div>
+
+              <div
+                style={{
+                  background: '#fff7ed',
+                  borderRadius: 12,
+                  padding: 13,
+                }}
+              >
+                <div style={{ color: '#9a3412', fontSize: 12 }}>
+                  Fechas pendientes
+                </div>
+                <strong style={{ fontSize: 25, color: '#9a3412' }}>
+                  {totalFechasDeuda}
+                </strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {deudas.map((jugador) => (
+                <div
+                  key={jugador.playerId}
+                  style={{
+                    border: '1px solid #fed7aa',
+                    borderRadius: 12,
+                    padding: 15,
+                    background: '#fffdfa',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <strong style={{ fontSize: 15 }}>
+                      {jugador.fullName}
+                    </strong>
+
+                    <span
+                      style={{
+                        borderRadius: 999,
+                        padding: '5px 9px',
+                        background: '#fef3c7',
+                        color: '#92400e',
+                        fontSize: 11,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {jugador.fechas.length}{' '}
+                      {jugador.fechas.length === 1
+                        ? 'fecha pendiente'
+                        : 'fechas pendientes'}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      color: '#64748b',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      marginBottom: 7,
+                    }}
+                  >
+                    Fechas de pichangas anteriores que debe:
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {jugador.fechas.map((fechaDeuda) => (
+                      <span
+                        key={fechaDeuda}
+                        style={{
+                          display: 'inline-block',
+                          background: '#ffedd5',
+                          color: '#9a3412',
+                          borderRadius: 8,
+                          padding: '7px 10px',
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        <CalendarDays
+                          size={13}
+                          style={{
+                            display: 'inline',
+                            verticalAlign: 'middle',
+                            marginRight: 5,
+                          }}
+                        />
+                        {formatDate(fechaDeuda)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-dark"
+              onClick={() => setMostrarPopup(false)}
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                marginTop: 20,
+                padding: 13,
+              }}
+            >
+              Entendido
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
