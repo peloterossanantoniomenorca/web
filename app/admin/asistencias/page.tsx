@@ -11,6 +11,7 @@ import {
   XCircle,
   AlertTriangle,
   X,
+  MessageCircle,
 } from 'lucide-react';
 
 type Player = {
@@ -134,6 +135,7 @@ export default function AsistenciasPage() {
     );
 
     setSuccess('');
+    setError('');
   }
 
   function cambiarAsistencia(playerId: string, asistio: boolean) {
@@ -150,6 +152,34 @@ export default function AsistenciasPage() {
     );
 
     setSuccess('');
+    setError('');
+  }
+
+  function compartirPorWhatsApp() {
+    const nombresAsistentes = rows
+      .filter((row) => row.asistio)
+      .map((row, index) => `${index + 1}. ${row.fullName}`);
+
+    if (nombresAsistentes.length === 0) {
+      setError(
+        'No hay peloteros marcados como asistentes para compartir.'
+      );
+      return;
+    }
+
+    const mensaje = [
+      `ASISTENCIA DE PICHANGA: ${formatDate(fecha)}`,
+      '',
+      'PELOTEROS QUE ASISTIERON:',
+      '',
+      ...nombresAsistentes,
+      '',
+      `TOTAL DE ASISTENTES: ${nombresAsistentes.length}`,
+    ].join('\n');
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   async function guardar() {
@@ -348,6 +378,8 @@ export default function AsistenciasPage() {
                 onChange={(event) => {
                   setFecha(event.target.value);
                   setMostrarPopup(false);
+                  setError('');
+                  setSuccess('');
                 }}
                 style={{ paddingLeft: 42 }}
                 required
@@ -501,19 +533,43 @@ export default function AsistenciasPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              className="btn btn-dark"
-              onClick={guardar}
-              disabled={loading || saving || rows.length === 0}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                flexWrap: 'wrap',
+              }}
             >
-              {saving ? (
-                <LoaderCircle size={18} />
-              ) : (
-                <Save size={18} />
-              )}
-              {saving ? 'Guardando...' : 'Guardar asistencia'}
-            </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={compartirPorWhatsApp}
+                disabled={loading || rows.length === 0 || asistentes === 0}
+                style={{
+                  background: '#dcfce7',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                }}
+              >
+                <MessageCircle size={18} />
+                Compartir por WhatsApp
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={guardar}
+                disabled={loading || saving || rows.length === 0}
+              >
+                {saving ? (
+                  <LoaderCircle size={18} />
+                ) : (
+                  <Save size={18} />
+                )}
+                {saving ? 'Guardando...' : 'Guardar asistencia'}
+              </button>
+            </div>
           </div>
 
           {loading ? (
