@@ -5,6 +5,8 @@ import { getSession } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const TIPO_CUOTA_PARTIDO = 'Pago cuota por partido';
+
 function isValidDate(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -25,13 +27,6 @@ function getDateRange(fecha: string) {
   return { inicio, fin };
 }
 
-/**
- * Devuelve los jugadores que tienen una cuota por partido
- * aprobada para la fecha indicada.
- *
- * Las donaciones y los demás conceptos se ignoran.
- * La fecha se compara por día, sin exigir una hora exacta.
- */
 async function obtenerJugadoresPagados(fecha: string) {
   const { inicio, fin } = getDateRange(fecha);
 
@@ -44,7 +39,7 @@ async function obtenerJugadoresPagados(fecha: string) {
       },
       paymentType: {
         is: {
-          description: 'Pago cuota por partido',
+          description: TIPO_CUOTA_PARTIDO,
         },
       },
     },
@@ -54,6 +49,123 @@ async function obtenerJugadoresPagados(fecha: string) {
   });
 
   return new Set(pagos.map((pago) => pago.playerId));
+}
+
+/**
+ * Busca las deudas históricas de los peloteros que asistieron.
+ *
+ * IMPORTANTE:
+ * Solo considera fechas anteriores a la pichanga actual.
+ * No incluye la fecha que se está registrando ni fechas futuras.
+ *
+ * Una asistencia cuenta como deuda si no existe un pago
+ * aprobado del concepto "Pago cuota por partido"
+ * para esa misma fecha.
+ */
+async function obtenerDeudas(
+  playerIds: string[],
+  fechaActual: string
+) {
+  if (playerIds.length === 0) return [];
+
+  const fechaLimite = new Date(`${fechaActual}T00:00:00.000Z`);
+
+  const asistencias = await prisma.asistencia.findMany({
+    where: {
+      playerId: { in: playerIds },
+      asistio: true,
+      fechaPichanga: {
+        lt: fechaLimite,
+      },
+    },
+    select: {
+      playerId: true,
+      fechaPichanga: true,
+    },
+    orderBy: {
+      fechaPichanga: 'asc',
+    },
+  });
+
+  if (asistencias.length === 0) return [];
+
+  const fechasOrdenadas = [
+    ...new Set(
+      asistencias.map((item) =>
+        item.fechaPichanga.toISOString().slice(0, 10)
+      )
+    ),
+  ].sort();
+
+  const primeraFecha = new Date(
+    `${fechasOrdenadas[0]}T00:00:00.000Z`
+  );
+
+  const pagosAprobados = await prisma.payment.findMany({
+    where: {
+      playerId: { in: playerIds },
+      status: 'APPROVED',
+      pichangaDate: {
+        gte: primeraFecha,
+        lt: fechaLimite,
+      },
+      paymentType: {
+        is: {
+          description: TIPO_CUOTA_PARTIDO,
+        },
+      },
+    },
+    select: {
+      playerId: true,
+      pichangaDate: true,
+    },
+  });
+
+  const pagosPagados = new Set(
+    pagosAprobados.map((pago) =>
+      `${pago.playerId}|${pago.pichangaDate.toISOString().slice(0, 10)}`
+    )
+  );
+
+  const deudasPorJugador = new Map<string, Set<string>>();
+
+  for (const asistencia of asistencias) {
+    const fecha = asistencia.fechaPichanga
+      .toISOString()
+      .slice(0, 10);
+
+    const clave = `${asistencia.playerId}|${fecha}`;
+
+    if (!pagosPagados.has(clave)) {
+      if (!deudasPorJugador.has(asistencia.playerId)) {
+        deudasPorJugador.set(asistencia.playerId, new Set());
+      }
+
+      deudasPorJugador.get(asistencia.playerId)!.add(fecha);
+    }
+  }
+
+  const jugadores = await prisma.player.findMany({
+    where: {
+      id: { in: playerIds },
+    },
+    select: {
+      id: true,
+      fullName: true,
+    },
+  });
+
+  const nombres = new Map(
+    jugadores.map((jugador) => [jugador.id, jugador.fullName])
+  );
+
+  return [...deudasPorJugador.entries()]
+    .map(([playerId, fechasPendientes]) => ({
+      playerId,
+      fullName: nombres.get(playerId) || 'Pelotero',
+      fechas: [...fechasPendientes].sort(),
+    }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
 }
 
 export async function GET(request: Request) {
@@ -111,8 +223,6 @@ export async function GET(request: Request) {
       ])
     );
 
-    // Se muestran todos los jugadores activos, pero esto NO significa
-    // que todos deban tener un registro de asistencia en la base de datos.
     const resultado = players.map((player) => {
       const asistencia = asistenciaPorJugador.get(player.id);
 
@@ -121,8 +231,6 @@ export async function GET(request: Request) {
         playerId: player.id,
         fechaPichanga: `${fecha}T00:00:00.000Z`,
         asistio: asistencia?.asistio ?? false,
-
-        // El estado de pago depende del pago aprobado correspondiente.
         estadoPago: jugadoresPagados.has(player.id)
           ? 'PAGADO'
           : 'POR_PAGAR',
@@ -158,6 +266,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const fecha = body.fecha;
     const asistencias = body.asistencias;
+    const playerIdsAsistieron = body.playerIdsAsistieron;
 
     if (!isValidDate(fecha)) {
       return NextResponse.json(
@@ -173,6 +282,18 @@ export async function POST(request: Request) {
       );
     }
 
+    if (
+      !Array.isArray(playerIdsAsistieron) ||
+      playerIdsAsistieron.some(
+        (id) => typeof id !== 'string' || !id.trim()
+      )
+    ) {
+      return NextResponse.json(
+        { error: 'La lista de peloteros asistentes no es válida.' },
+        { status: 400 }
+      );
+    }
+
     const playerIds: string[] = [];
 
     for (const item of asistencias) {
@@ -184,8 +305,7 @@ export async function POST(request: Request) {
       ) {
         return NextResponse.json(
           {
-            error:
-              'Hay datos inválidos en la lista de asistencias.',
+            error: 'Hay datos inválidos en la lista de asistencias.',
           },
           { status: 400 }
         );
@@ -201,15 +321,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (
+      new Set(playerIdsAsistieron).size !==
+      playerIdsAsistieron.length
+    ) {
+      return NextResponse.json(
+        { error: 'Hay peloteros asistentes duplicados.' },
+        { status: 400 }
+      );
+    }
+
+    const todosLosIds = [
+      ...new Set([...playerIds, ...playerIdsAsistieron]),
+    ];
+
     const fechaPichanga = new Date(`${fecha}T00:00:00.000Z`);
 
-    // Solo validamos los jugadores que el cliente envía.
-    // No se crean registros automáticamente para los ausentes.
     const [players, asistenciasExistentes, jugadoresPagados] =
       await Promise.all([
         prisma.player.findMany({
           where: {
-            id: { in: playerIds },
+            id: { in: todosLosIds },
             status: 'ACTIVE',
           },
           select: { id: true },
@@ -230,7 +362,7 @@ export async function POST(request: Request) {
         obtenerJugadoresPagados(fecha),
       ]);
 
-    if (players.length !== playerIds.length) {
+    if (players.length !== todosLosIds.length) {
       return NextResponse.json(
         {
           error:
@@ -249,11 +381,6 @@ export async function POST(request: Request) {
       ])
     );
 
-    // Reglas:
-    // 1. Marcado y sin registro: crear.
-    // 2. Marcado y con registro: actualizar.
-    // 3. Desmarcado y con registro previo: actualizar asistio=false.
-    // 4. Desmarcado y sin registro previo: no guardar nada.
     const operaciones = asistencias
       .filter((item: { playerId: string; asistio: boolean }) =>
         jugadoresValidos.has(item.playerId)
@@ -263,8 +390,6 @@ export async function POST(request: Request) {
           item.playerId
         );
 
-        // Si nunca existió un registro y sigue desmarcado,
-        // no se crea una fila innecesaria.
         if (!existente && !item.asistio) {
           return [];
         }
@@ -298,18 +423,21 @@ export async function POST(request: Request) {
         ];
       });
 
+    // Primero se guardan los cambios de asistencia.
     await prisma.$transaction(operaciones);
 
-    const total = asistencias.filter(
-      (item: { playerId: string; asistio: boolean }) =>
-        item.asistio
-    ).length;
+    // Después se buscan exclusivamente las deudas anteriores.
+    const deudas = await obtenerDeudas(
+      playerIdsAsistieron,
+      fecha
+    );
 
     return NextResponse.json({
       message: 'Asistencia guardada correctamente.',
       fecha,
-      total,
+      total: playerIdsAsistieron.length,
       registrosProcesados: operaciones.length,
+      deudas,
     });
   } catch (error) {
     console.error('ERROR GUARDANDO ASISTENCIAS:', error);
