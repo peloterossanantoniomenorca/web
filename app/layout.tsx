@@ -1,6 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
-import { Shield } from 'lucide-react';
+import { Shield, LogOut } from 'lucide-react';
 import { getSession, normalizeRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -59,27 +59,61 @@ export default async function RootLayout({
                 flexWrap: 'wrap',
               }}
             >
-              {/* Enlaces públicos */}
               <Link href="/">Home</Link>
               <Link href="/peloteros">Peloteros</Link>
               <Link href="/pagos">Registrar Pago</Link>
               <Link href="/pagos-multiple">Registrar pago-Multiple</Link>
 
-              {/* Opciones exclusivas del administrador */}
               {esAdmin && (
                 <>
                   <Link href="/reportes">Aprobar pagos</Link>
-                  <Link href="/admin" aria-label="Administración">
-                    <Shield size={17} />
+                  <Link href="/admin" aria-label="Administración" title="Administración">
+                    <Shield size={19} />
                   </Link>
                 </>
               )}
 
-              {/* Única opción administrativa del encargado */}
               {esEncargado && (
                 <Link href="/admin/asistencias">
                   Registro de asistencias
                 </Link>
+              )}
+
+              {/* Acceso al panel o inicio de sesión siempre visible */}
+              {!esAdmin && !esEncargado && (
+                <Link
+                  href="/admin"
+                  aria-label="Ingresar"
+                  title="Ingresar"
+                  style={{ display: 'flex', alignItems: 'center' }}
+                >
+                  <Shield size={19} />
+                </Link>
+              )}
+
+              {/* Cerrar sesión para cualquier usuario autenticado */}
+              {session && (
+                <form action="/admin/logout" method="POST">
+                  <button
+                    type="submit"
+                    title="Cerrar sesión"
+                    aria-label="Cerrar sesión"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'transparent',
+                      border: '1px solid #64748b',
+                      color: '#fff',
+                      borderRadius: 8,
+                      padding: '7px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <LogOut size={17} />
+                    Cerrar sesión
+                  </button>
+                </form>
               )}
             </nav>
           </div>
