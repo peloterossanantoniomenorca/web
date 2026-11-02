@@ -105,12 +105,35 @@ export default async function AdminPage() {
 
         {/* REGISTRO DE ASISTENCIAS: ADMIN Y ENCARGADO */}
         {(esAdmin || esEncargado) && (
-          <Link href="/admin/asistencias" style={{ ...estiloTarjeta, borderColor: '#86efac', color: '#166534', background: '#f0fdf4' }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Registro de asistencias</h2>
-            <p style={{ marginTop: 8, color: '#166534' }}>
-              Registra quiénes asistieron a cada pichanga y controla sus cuotas pendientes o pagadas.
-            </p>
-          </Link>
+          <>
+            <Link href="/admin/asistencias" style={{ ...estiloTarjeta, borderColor: '#86efac', color: '#166534', background: '#f0fdf4' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Registro de asistencias</h2>
+              <p style={{ marginTop: 8, color: '#166534' }}>
+                Registra quiénes asistieron a cada pichanga y controla sus cuotas pendientes o pagadas.
+              </p>
+            </Link>
+
+            {/* LAVAR CHALECOS: ADMIN Y ENCARGADO */}
+            <Link
+              href="/admin/lavar-chalecos"
+              style={{
+                ...estiloTarjeta,
+                borderColor: '#86efac',
+                color: '#166534',
+                background: '#f0fdf4',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 27 }}>👕</span>
+                <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
+                  Lavar Chalecos
+                </h2>
+              </div>
+              <p style={{ marginTop: 8, color: '#166534' }}>
+                Realiza el sorteo automático y equitativo del pelotero responsable de lavar los chalecos.
+              </p>
+            </Link>
+          </>
         )}
 
       </div>
