@@ -121,11 +121,17 @@ async function obtenerDeudas(
     },
   });
 
-  const pagosPagados = new Set(
-    pagosAprobados.map((pago) =>
-      `${pago.playerId}|${pago.pichangaDate.toISOString().slice(0, 10)}`
-    )
-  );
+const pagosPagados = new Set(
+  pagosAprobados.flatMap((pago) => {
+    if (!pago.pichangaDate) {
+      return [];
+    }
+
+    return [
+      `${pago.playerId}|${pago.pichangaDate.toISOString().slice(0, 10)}`,
+    ];
+  })
+);
 
   const deudasPorJugador = new Map<string, Set<string>>();
 
