@@ -38,6 +38,7 @@ model Player {
   updatedAt    DateTime     @updatedAt
   payments     Payment[]
   asistencias  Asistencia[]
+  lavarChalecos   LavarChaleco[]
 
   @@index([status])
   @@index([fullName])
@@ -131,4 +132,20 @@ model Asistencia {
   @@index([fechaPichanga])
   @@index([estadoPago])
   @@map("Asistencia")
+}
+
+
+model LavarChaleco {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  fechaPichanga  DateTime @db.Date @map("fecha_pichanga")
+  playerId       String   @map("id_pelotero")
+  estado         String   @default("PENDIENTE") @db.VarChar(20)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  player Player @relation(fields: [playerId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([playerId])
+  @@index([fechaPichanga])
+  @@index([estado])
+  @@map("lavar_chalecos")
 }
