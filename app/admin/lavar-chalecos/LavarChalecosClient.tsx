@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Shirt,
   CalendarDays,
-  Users,
   CheckCircle2,
   LoaderCircle,
   Shuffle,
   AlertCircle,
   RefreshCw,
   Clock,
+  UserPlus,
 } from 'lucide-react';
 
 type Pelotero = {
@@ -34,7 +34,6 @@ function obtenerFechaActual() {
   const anio = hoy.getFullYear();
   const mes = String(hoy.getMonth() + 1).padStart(2, '0');
   const dia = String(hoy.getDate()).padStart(2, '0');
-
   return `${anio}-${mes}-${dia}`;
 }
 
@@ -57,23 +56,14 @@ function formatearFechaCorta(fecha: string) {
 
 function colorEstado(estado: string) {
   if (estado === 'REALIZADO') {
-    return {
-      background: '#dcfce7',
-      color: '#166534',
-    };
+    return { background: '#dcfce7', color: '#166534' };
   }
 
   if (estado === 'REASIGNADO') {
-    return {
-      background: '#f1f5f9',
-      color: '#475569',
-    };
+    return { background: '#f1f5f9', color: '#475569' };
   }
 
-  return {
-    background: '#fef3c7',
-    color: '#92400e',
-  };
+  return { background: '#fef3c7', color: '#92400e' };
 }
 
 export default function LavarChalecosClient() {
@@ -81,6 +71,7 @@ export default function LavarChalecosClient() {
   const [loading, setLoading] = useState(false);
   const [consultando, setConsultando] = useState(true);
   const [reasignando, setReasignando] = useState(false);
+  const [guardandoManual, setGuardandoManual] = useState(false);
 
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -94,6 +85,10 @@ export default function LavarChalecosClient() {
   const [cantidadCandidatos, setCantidadCandidatos] = useState(0);
 
   const [nuevoPlayerId, setNuevoPlayerId] = useState('');
+
+  // Estados para la asignación manual
+  const [mostrarAsignacionManual, setMostrarAsignacionManual] = useState(false);
+  const [manualPlayerId, setManualPlayerId] = useState('');
 
   const cargarDatos = useCallback(async (fechaConsulta: string) => {
     setConsultando(true);
@@ -116,6 +111,8 @@ export default function LavarChalecosClient() {
       setAsistentes(data.asistentes || []);
       setHistorial(data.historial || []);
       setNuevoPlayerId('');
+      setManualPlayerId('');
+      setMostrarAsignacionManual(false);
     } catch (err) {
       setResultado(null);
       setAsistentes([]);
@@ -155,9 +152,7 @@ export default function LavarChalecosClient() {
     try {
       const response = await fetch('/api/admin/lavar-chalecos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fechaPichanga: fecha }),
       });
 
@@ -182,6 +177,73 @@ export default function LavarChalecosClient() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // GUARDAR ASIGNACIÓN MANUAL
+  async function asignarManualmente() {
+    if (!fecha) {
+      setError('Selecciona la fecha de la pichanga.');
+      return;
+    }
+
+    if (!manualPlayerId) {
+      setError('Selecciona un pelotero de la lista.');
+      return;
+    }
+
+    const peloteroSeleccionado = asistentes.find(
+      (item) => item.id === manualPlayerId
+    );
+
+    if (!peloteroSeleccionado) {
+      setError('El pelotero seleccionado no está disponible.');
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Confirmas asignar manualmente el lavado a ${peloteroSeleccionado.fullName} para el ${formatearFecha(fecha)}?`
+    );
+
+    if (!confirmar) return;
+
+    setGuardandoManual(true);
+    setError('');
+    setMensaje('');
+
+    try {
+      const response = await fetch('/api/admin/lavar-chalecos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fechaPichanga: fecha,
+          playerId: manualPlayerId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        await cargarDatos(fecha);
+        throw new Error(data.error || 'No se pudo guardar la asignación manual.');
+      }
+
+      setMensaje(
+        `Asignación manual guardada correctamente para ${peloteroSeleccionado.fullName}.`
+      );
+
+      setMostrarAsignacionManual(false);
+      setManualPlayerId('');
+
+      await cargarDatos(fecha);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Ocurrió un error al guardar la asignación manual.'
+      );
+    } finally {
+      setGuardandoManual(false);
     }
   }
 
@@ -213,9 +275,7 @@ export default function LavarChalecosClient() {
     try {
       const response = await fetch('/api/admin/lavar-chalecos', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           asignacionId: resultado.id,
           playerId: nuevoPlayerId,
@@ -290,7 +350,7 @@ export default function LavarChalecosClient() {
         </div>
       </div>
 
-      {/* SELECCIÓN DE FECHA */}
+      {/* SELECCIÓN DE FECHA Y ASIGNACIÓN */}
       <section
         style={{
           background: '#ffffff',
@@ -331,7 +391,7 @@ export default function LavarChalecosClient() {
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            disabled={loading || reasignando}
+            disabled={loading || reasignando || guardandoManual}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -345,56 +405,218 @@ export default function LavarChalecosClient() {
           />
         </div>
 
-        <button
-          type="button"
-          onClick={asignarPelotero}
-          disabled={
-            loading ||
-            reasignando ||
-            consultando ||
-            !fecha ||
-            Boolean(resultado)
-          }
+        <div
           style={{
-            width: '100%',
-            minHeight: 48,
-            border: 'none',
-            borderRadius: 10,
-            background:
-              loading || consultando || resultado ? '#94a3b8' : '#047857',
-            color: '#ffffff',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor:
-              loading || consultando || resultado ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 12,
           }}
         >
-          {loading ? (
-            <>
-              <LoaderCircle size={20} />
-              Realizando sorteo...
-            </>
-          ) : consultando ? (
-            <>
-              <LoaderCircle size={20} />
-              Consultando fecha...
-            </>
-          ) : resultado ? (
-            <>
-              <CheckCircle2 size={20} />
-              Ya existe una asignación
-            </>
-          ) : (
-            <>
-              <Shuffle size={20} />
-              Asignar Pelotero
-            </>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={asignarPelotero}
+            disabled={
+              loading ||
+              reasignando ||
+              guardandoManual ||
+              consultando ||
+              !fecha ||
+              Boolean(resultado) ||
+              asistentes.length === 0
+            }
+            style={{
+              width: '100%',
+              minHeight: 48,
+              border: 'none',
+              borderRadius: 10,
+              background:
+                loading || consultando || resultado || asistentes.length === 0
+                  ? '#94a3b8'
+                  : '#047857',
+              color: '#ffffff',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor:
+                loading || consultando || resultado || asistentes.length === 0
+                  ? 'not-allowed'
+                  : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}
+          >
+            {loading ? (
+              <>
+                <LoaderCircle size={20} />
+                Realizando sorteo...
+              </>
+            ) : consultando ? (
+              <>
+                <LoaderCircle size={20} />
+                Consultando fecha...
+              </>
+            ) : resultado ? (
+              <>
+                <CheckCircle2 size={20} />
+                Ya existe una asignación
+              </>
+            ) : (
+              <>
+                <Shuffle size={20} />
+                Asignar Pelotero
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMostrarAsignacionManual((actual) => !actual);
+              setManualPlayerId('');
+              setError('');
+              setMensaje('');
+            }}
+            disabled={
+              loading ||
+              reasignando ||
+              guardandoManual ||
+              consultando ||
+              Boolean(resultado) ||
+              asistentes.length === 0
+            }
+            style={{
+              width: '100%',
+              minHeight: 48,
+              border: '1px solid #047857',
+              borderRadius: 10,
+              background:
+                consultando || resultado || asistentes.length === 0
+                  ? '#e2e8f0'
+                  : '#ffffff',
+              color:
+                consultando || resultado || asistentes.length === 0
+                  ? '#94a3b8'
+                  : '#047857',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor:
+                consultando || resultado || asistentes.length === 0
+                  ? 'not-allowed'
+                  : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}
+          >
+            <UserPlus size={20} />
+            {mostrarAsignacionManual ? 'Cancelar asignación' : 'Asignar manualmente'}
+          </button>
+        </div>
+
+        {/* FORMULARIO DE ASIGNACIÓN MANUAL */}
+        {mostrarAsignacionManual && !resultado && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 18,
+              borderRadius: 12,
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px', color: '#166534', fontSize: 17 }}>
+              Asignación manual
+            </h3>
+
+            <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: 13 }}>
+              Selecciona al pelotero que se hará responsable del lavado. La lista
+              incluye únicamente a quienes registraron asistencia el{' '}
+              {formatearFecha(fecha)}.
+            </p>
+
+            {asistentes.length > 0 ? (
+              <>
+                <label
+                  htmlFor="peloteroManual"
+                  style={{
+                    display: 'block',
+                    fontWeight: 600,
+                    marginBottom: 8,
+                  }}
+                >
+                  Pelotero responsable
+                </label>
+
+                <select
+                  id="peloteroManual"
+                  value={manualPlayerId}
+                  onChange={(e) => setManualPlayerId(e.target.value)}
+                  disabled={guardandoManual}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: 12,
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 9,
+                    background: '#fff',
+                    fontSize: 15,
+                    marginBottom: 14,
+                  }}
+                >
+                  <option value="">Seleccionar pelotero...</option>
+                  {asistentes.map((pelotero) => (
+                    <option key={pelotero.id} value={pelotero.id}>
+                      {pelotero.fullName} - Camiseta {pelotero.jerseyNumber}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={asignarManualmente}
+                  disabled={guardandoManual || !manualPlayerId}
+                  style={{
+                    width: '100%',
+                    minHeight: 46,
+                    border: 'none',
+                    borderRadius: 9,
+                    background:
+                      guardandoManual || !manualPlayerId ? '#94a3b8' : '#047857',
+                    color: '#fff',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor:
+                      guardandoManual || !manualPlayerId
+                        ? 'not-allowed'
+                        : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 9,
+                  }}
+                >
+                  {guardandoManual ? (
+                    <>
+                      <LoaderCircle size={19} />
+                      Guardando asignación...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={19} />
+                      Guardar asignación manual
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <p style={{ color: '#b91c1c', margin: 0, fontSize: 14 }}>
+                No hay peloteros que hayan marcado asistencia en esta fecha.
+              </p>
+            )}
+          </div>
+        )}
 
         <p
           style={{
@@ -404,8 +626,8 @@ export default function LavarChalecosClient() {
             marginTop: 13,
           }}
         >
-          El sorteo considerará únicamente a los peloteros que marcaron
-          asistencia en la fecha seleccionada.
+          El sorteo y la asignación manual consideran únicamente a los
+          peloteros que marcaron asistencia en la fecha seleccionada.
         </p>
       </section>
 
