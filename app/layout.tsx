@@ -1,17 +1,26 @@
 import './globals.css';
 import Link from 'next/link';
 import { Shield } from 'lucide-react';
+import { getSession, normalizeRole } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Peloteros San Antonio FC',
   description: 'Gestión de peloteros, pagos y comprobantes del club.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+  const role = session ? normalizeRole(session.payload.role) : null;
+
+  const esAdmin = role === 'ADMIN';
+  const esEncargado = role === 'ENCARGADO';
+
   return (
     <html lang="es">
       <body>
@@ -50,14 +59,28 @@ export default function RootLayout({
                 flexWrap: 'wrap',
               }}
             >
+              {/* Enlaces públicos */}
               <Link href="/">Home</Link>
               <Link href="/peloteros">Peloteros</Link>
               <Link href="/pagos">Registrar Pago</Link>
               <Link href="/pagos-multiple">Registrar pago-Multiple</Link>
-              <Link href="/reportes">Aprobar pagos</Link>
-              <Link href="/admin" aria-label="Administración">
-                <Shield size={17} />
-              </Link>
+
+              {/* Opciones exclusivas del administrador */}
+              {esAdmin && (
+                <>
+                  <Link href="/reportes">Aprobar pagos</Link>
+                  <Link href="/admin" aria-label="Administración">
+                    <Shield size={17} />
+                  </Link>
+                </>
+              )}
+
+              {/* Única opción administrativa del encargado */}
+              {esEncargado && (
+                <Link href="/admin/asistencias">
+                  Registro de asistencias
+                </Link>
+              )}
             </nav>
           </div>
         </header>
