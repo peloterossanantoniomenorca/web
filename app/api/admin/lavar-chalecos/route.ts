@@ -176,7 +176,7 @@ export async function GET(req: Request) {
   }
 }
 
-// REALIZAR SORTEO INICIAL
+// REALIZAR SORTEO AUTOMÁTICO O ASIGNACIÓN MANUAL
 export async function POST(req: Request) {
   try {
     const permiso = await verificarPermiso();
@@ -200,6 +200,78 @@ export async function POST(req: Request) {
 
     const fechaPichanga = fechaDesdeTexto(fecha);
 
+    // ==========================================
+    // ASIGNACIÓN MANUAL
+    // ==========================================
+    if (body.playerId !== undefined) {
+      if (
+        typeof body.playerId !== 'string' ||
+        !body.playerId.trim()
+      ) {
+        return NextResponse.json(
+          { error: 'Selecciona un pelotero válido.' },
+          { status: 400 }
+        );
+      }
+
+      const playerId = body.playerId.trim();
+
+      const asignacion = await prisma.$transaction(
+        async (tx) => {
+          const asignacionExistente = await tx.lavarChaleco.findFirst({
+            where: { fechaPichanga },
+          });
+
+          if (asignacionExistente) {
+            throw new Error('ASIGNACION_EXISTENTE');
+          }
+
+          // Validar que el pelotero realmente asistió.
+          const asistencia = await tx.asistencia.findFirst({
+            where: {
+              fechaPichanga,
+              playerId,
+              asistio: true,
+            },
+          });
+
+          if (!asistencia) {
+            throw new Error('PELOTERO_NO_ASISTIO');
+          }
+
+          return tx.lavarChaleco.create({
+            data: {
+              fechaPichanga,
+              playerId,
+              estado: 'PENDIENTE',
+            },
+            include: {
+              player: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  jerseyNumber: true,
+                },
+              },
+            },
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        mensaje: 'Asignación manual realizada correctamente.',
+        asignacion: serializarAsignacion(asignacion),
+        criterio: 'ASIGNACION_MANUAL',
+      });
+    }
+
+    // ==========================================
+    // SORTEO AUTOMÁTICO
+    // ==========================================
     const resultado = await prisma.$transaction(
       async (tx) => {
         const asignacionExistente = await tx.lavarChaleco.findFirst({
@@ -339,18 +411,30 @@ export async function POST(req: Request) {
       totalAsistentes: resultado.totalAsistentes,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === 'ASIGNACION_EXISTENTE') {
-      return NextResponse.json(
-        { error: 'Ya existe una asignación de lavado para esta fecha.' },
-        { status: 409 }
-      );
-    }
+    if (error instanceof Error) {
+      const errores: Record<string, { mensaje: string; status: number }> = {
+        ASIGNACION_EXISTENTE: {
+          mensaje: 'Ya existe una asignación de lavado para esta fecha.',
+          status: 409,
+        },
+        SIN_ASISTENTES: {
+          mensaje: 'No hay peloteros marcados como asistentes para esta fecha.',
+          status: 400,
+        },
+        PELOTERO_NO_ASISTIO: {
+          mensaje: 'El pelotero seleccionado no figura como asistente en esa fecha.',
+          status: 400,
+        },
+      };
 
-    if (error instanceof Error && error.message === 'SIN_ASISTENTES') {
-      return NextResponse.json(
-        { error: 'No hay peloteros marcados como asistentes para esta fecha.' },
-        { status: 400 }
-      );
+      const detalle = errores[error.message];
+
+      if (detalle) {
+        return NextResponse.json(
+          { error: detalle.mensaje },
+          { status: detalle.status }
+        );
+      }
     }
 
     if (
@@ -363,10 +447,10 @@ export async function POST(req: Request) {
       );
     }
 
-    console.error('ERROR SORTEO LAVAR CHALECOS:', error);
+    console.error('ERROR SORTEO / ASIGNACIÓN LAVAR CHALECOS:', error);
 
     return NextResponse.json(
-      { error: 'Ocurrió un error al realizar el sorteo.' },
+      { error: 'Ocurrió un error al realizar la asignación.' },
       { status: 500 }
     );
   }
@@ -423,7 +507,7 @@ export async function PATCH(req: Request) {
       }
 
       if (actual.playerId === nuevoPlayerId) {
-        throw new Error('MISMO_PELotERO');
+        throw new Error('MISMO_PELOTERO');
       }
 
       // El nuevo responsable debe haber asistido a esa pichanga.
@@ -432,15 +516,6 @@ export async function PATCH(req: Request) {
           playerId: nuevoPlayerId,
           fechaPichanga: actual.fechaPichanga,
           asistio: true,
-        },
-        include: {
-          player: {
-            select: {
-              id: true,
-              fullName: true,
-              jerseyNumber: true,
-            },
-          },
         },
       });
 
@@ -507,7 +582,7 @@ export async function PATCH(req: Request) {
           mensaje: 'Esta asignación ya no está pendiente y no puede reasignarse.',
           status: 409,
         },
-        MISMO_PELotERO: {
+        MISMO_PELOTERO: {
           mensaje: 'Selecciona un pelotero diferente al responsable actual.',
           status: 400,
         },
