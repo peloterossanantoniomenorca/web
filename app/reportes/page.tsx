@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, normalizeRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import ReportsTable from './table';
 
@@ -10,6 +10,13 @@ export default async function Reports() {
 
   if (!session) {
     redirect('/admin/login');
+  }
+
+  // Solo ADMIN puede acceder a la aprobación de pagos.
+  const role = normalizeRole(session.payload.role);
+
+  if (role !== 'ADMIN') {
+    redirect('/admin');
   }
 
   const payments = await prisma.payment.findMany({
