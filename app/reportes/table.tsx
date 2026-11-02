@@ -23,10 +23,11 @@ export default function ReportsTable({
   payments: PaymentRow[];
 }) {
   const [q, setQ] = useState('');
-  // Por defecto, mostrar solamente los pagos pendientes.
   const [status, setStatus] = useState('PENDING');
   const [pichangaDate, setPichangaDate] = useState('');
   const [changingId, setChangingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [error, setError] = useState('');
 
   const filtered = useMemo(
@@ -46,6 +47,39 @@ export default function ReportsTable({
       }),
     [payments, q, status, pichangaDate]
   );
+
+  const selectable = filtered.filter((p) => p.status === 'PENDING');
+  const selectedVisible = selectable.filter((p) =>
+    selectedIds.includes(p.id)
+  );
+  const allVisibleSelected =
+    selectable.length > 0 &&
+    selectable.every((p) => selectedIds.includes(p.id));
+
+  function clearSelection() {
+    setSelectedIds([]);
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    );
+  }
+
+  function toggleAll() {
+    if (allVisibleSelected) {
+      const visibleIds = new Set(selectable.map((p) => p.id));
+      setSelectedIds((current) =>
+        current.filter((id) => !visibleIds.has(id))
+      );
+    } else {
+      setSelectedIds((current) => [
+        ...new Set([...current, ...selectable.map((p) => p.id)]),
+      ]);
+    }
+  }
 
   function formatDate(value: string | null) {
     if (!value) return 'No registrada';
@@ -100,18 +134,14 @@ export default function ReportsTable({
     try {
       const response = await fetch(`/api/payments/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(
-          data.error || 'No se pudo actualizar el pago.'
-        );
+        throw new Error(data.error || 'No se pudo actualizar el pago.');
       }
 
       window.location.reload();
@@ -122,6 +152,63 @@ export default function ReportsTable({
           : 'Ocurrió un error al actualizar el pago.'
       );
       setChangingId(null);
+    }
+  }
+
+  async function changeSelected(
+    newStatus: 'APPROVED' | 'REJECTED'
+  ) {
+    const ids = selectedVisible.map((p) => p.id);
+
+    if (ids.length === 0) {
+      setError('Selecciona al menos un pago pendiente.');
+      return;
+    }
+
+    const action =
+      newStatus === 'APPROVED' ? 'aprobar' : 'rechazar';
+
+    const confirmed = window.confirm(
+      `¿Confirmas que deseas ${action} ${ids.length} pagos seleccionados?`
+    );
+
+    if (!confirmed) return;
+
+    setBulkBusy(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/payments/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids,
+          status: newStatus,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'No se pudieron procesar los pagos seleccionados.'
+        );
+      }
+
+      const skippedMessage =
+        data.skipped > 0
+          ? ` ${data.skipped} pagos fueron omitidos porque ya no estaban pendientes.`
+          : '';
+
+      window.alert(`${data.message}${skippedMessage}`);
+      window.location.reload();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Ocurrió un error en el procesamiento masivo.'
+      );
+      setBulkBusy(false);
     }
   }
 
@@ -235,7 +322,10 @@ export default function ReportsTable({
             style={{ width: '100%', boxSizing: 'border-box' }}
             placeholder="Nombre del pelotero"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              clearSelection();
+            }}
           />
         </div>
 
@@ -256,7 +346,10 @@ export default function ReportsTable({
             className="input"
             style={{ width: '100%', boxSizing: 'border-box' }}
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              clearSelection();
+            }}
           >
             <option value="PENDING">Pendientes</option>
             <option value="APPROVED">Aprobados</option>
@@ -283,7 +376,10 @@ export default function ReportsTable({
             style={{ width: '100%', boxSizing: 'border-box' }}
             type="date"
             value={pichangaDate}
-            onChange={(e) => setPichangaDate(e.target.value)}
+            onChange={(e) => {
+              setPichangaDate(e.target.value);
+              clearSelection();
+            }}
           />
         </div>
 
@@ -308,6 +404,7 @@ export default function ReportsTable({
               setQ('');
               setStatus('PENDING');
               setPichangaDate('');
+              clearSelection();
             }}
           >
             Restablecer filtros
@@ -338,8 +435,7 @@ export default function ReportsTable({
         }}
       >
         Mostrando <strong>{filtered.length}</strong> de{' '}
-        <strong>{payments.length}</strong> pagos.
-        {' '}
+        <strong>{payments.length}</strong> pagos.{' '}
         {status === 'PENDING'
           ? 'Vista de pagos pendientes.'
           : status === 'APPROVED'
@@ -349,7 +445,56 @@ export default function ReportsTable({
               : 'Vista de todos los estados.'}
       </p>
 
-      {/* El desplazamiento horizontal queda dentro de la tabla. */}
+      {selectable.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+            padding: 14,
+            marginBottom: 16,
+            border: '1px solid #bbd9ca',
+            borderRadius: 10,
+            background: '#f0fdf4',
+          }}
+        >
+          <strong style={{ color: '#14532d', marginRight: 'auto' }}>
+            {selectedVisible.length} pago(s) seleccionado(s)
+          </strong>
+
+          <button
+            type="button"
+            className="btn"
+            disabled={bulkBusy || selectedVisible.length === 0}
+            onClick={() => changeSelected('APPROVED')}
+            style={{
+              background: '#166534',
+              color: '#fff',
+              padding: '10px 14px',
+              opacity: bulkBusy || selectedVisible.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {bulkBusy ? 'Procesando…' : 'Aprobar seleccionados'}
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            disabled={bulkBusy || selectedVisible.length === 0}
+            onClick={() => changeSelected('REJECTED')}
+            style={{
+              background: '#b91c1c',
+              color: '#fff',
+              padding: '10px 14px',
+              opacity: bulkBusy || selectedVisible.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {bulkBusy ? 'Procesando…' : 'Rechazar seleccionados'}
+          </button>
+        </div>
+      )}
+
       <div
         style={{
           width: '100%',
@@ -364,7 +509,7 @@ export default function ReportsTable({
         <table
           style={{
             width: '100%',
-            minWidth: 1120,
+            minWidth: 1160,
             borderCollapse: 'separate',
             borderSpacing: 0,
             tableLayout: 'auto',
@@ -372,6 +517,15 @@ export default function ReportsTable({
         >
           <thead>
             <tr>
+              <th style={thStyle}>
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar todos los pagos pendientes visibles"
+                  checked={allVisibleSelected}
+                  disabled={selectable.length === 0 || bulkBusy}
+                  onChange={toggleAll}
+                />
+              </th>
               {[
                 'Pelotero',
                 'Tipo de pago',
@@ -393,9 +547,24 @@ export default function ReportsTable({
           <tbody>
             {filtered.map((p) => {
               const method = formatPaymentMethod(p.paymentMethod);
+              const isPending = p.status === 'PENDING';
 
               return (
                 <tr key={p.id}>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    {isPending ? (
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar pago de ${p.player}`}
+                        checked={selectedIds.includes(p.id)}
+                        disabled={bulkBusy}
+                        onChange={() => toggleOne(p.id)}
+                      />
+                    ) : (
+                      <span style={{ color: '#cbd5e1' }}>—</span>
+                    )}
+                  </td>
+
                   <td
                     style={{
                       ...tdStyle,
@@ -457,9 +626,7 @@ export default function ReportsTable({
                   </td>
 
                   <td style={tdStyle}>
-                    <span
-                      className={`badge badge-${p.status.toLowerCase()}`}
-                    >
+                    <span className={`badge badge-${p.status.toLowerCase()}`}>
                       {formatStatus(p.status)}
                     </span>
                   </td>
@@ -491,7 +658,7 @@ export default function ReportsTable({
                       </span>
                     )}
 
-                    {p.status === 'PENDING' && (
+                    {isPending && (
                       <div
                         style={{
                           display: 'flex',
@@ -510,12 +677,10 @@ export default function ReportsTable({
                             fontSize: 12,
                             whiteSpace: 'nowrap',
                           }}
-                          disabled={changingId === p.id}
+                          disabled={changingId === p.id || bulkBusy}
                           onClick={() => change(p.id, 'APPROVED')}
                         >
-                          {changingId === p.id
-                            ? 'Procesando…'
-                            : 'Aprobar'}
+                          {changingId === p.id ? 'Procesando…' : 'Aprobar'}
                         </button>
 
                         <button
@@ -527,7 +692,7 @@ export default function ReportsTable({
                             fontSize: 12,
                             whiteSpace: 'nowrap',
                           }}
-                          disabled={changingId === p.id}
+                          disabled={changingId === p.id || bulkBusy}
                           onClick={() => change(p.id, 'REJECTED')}
                         >
                           Rechazar
@@ -553,7 +718,7 @@ export default function ReportsTable({
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   style={{
                     padding: 32,
                     textAlign: 'center',
