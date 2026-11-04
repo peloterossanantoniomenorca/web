@@ -156,31 +156,49 @@ export default function AsistenciasPage() {
   }
 
   function compartirPorWhatsApp() {
-    const nombresAsistentes = rows
-      .filter((row) => row.asistio)
-      .map((row, index) => `${index + 1}. ${row.fullName}`);
+  const asistentesActuales = rows.filter((row) => row.asistio);
 
-    if (nombresAsistentes.length === 0) {
-      setError(
-        'No hay peloteros marcados como asistentes para compartir.'
-      );
-      return;
-    }
-
-    const mensaje = [
-      `*ASISTENCIA DE PICHANGA:* ${formatDate(fecha)}`,
-      '',
-      '*PELOTEROS QUE ASISTIERON:*',
-      '',
-      ...nombresAsistentes,
-      '',
-      `*TOTAL DE ASISTENTES:* ${nombresAsistentes.length}`,
-    ].join('\n');
-
-    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
-
-    window.open(url, '_blank', 'noopener,noreferrer');
+  if (asistentesActuales.length === 0) {
+    setError(
+      'No hay peloteros marcados como asistentes para compartir.'
+    );
+    return;
   }
+
+  const nombresAsistentes = asistentesActuales.map((row, index) => {
+    const icono = row.estadoPago === 'PAGADO' ? '✅' : '❌';
+
+    return `${index + 1}. ${row.fullName} ${icono}`;
+  });
+
+  const totalAsistentes = asistentesActuales.length;
+
+  const totalPendientes = asistentesActuales.filter(
+    (row) => row.estadoPago !== 'PAGADO'
+  ).length;
+
+  const totalPagados = asistentesActuales.filter(
+    (row) => row.estadoPago === 'PAGADO'
+  ).length;
+
+  const mensaje = [
+    `*ASISTENCIA DE PICHANGA:* ${formatDate(fecha)}`,
+    '',
+    '*PELOTEROS QUE ASISTIERON:*',
+    '',
+    ...nombresAsistentes,
+    '',
+    `*TOTAL DE ASISTENTES:* ${totalAsistentes}`,
+    '',
+    `*TOTAL PENDIENTE DE PAGO:* ${totalPendientes}`,
+    '',
+    `*TOTAL CUOTA PAGADA:* ${totalPagados}`,
+  ].join('\n');
+
+  const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
   async function guardar() {
     setSaving(true);
