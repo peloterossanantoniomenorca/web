@@ -72,6 +72,7 @@ export default function LavarChalecosClient() {
   const [consultando, setConsultando] = useState(true);
   const [reasignando, setReasignando] = useState(false);
   const [guardandoManual, setGuardandoManual] = useState(false);
+  const [marcandoRealizado, setMarcandoRealizado] = useState(false);
 
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -86,7 +87,6 @@ export default function LavarChalecosClient() {
 
   const [nuevoPlayerId, setNuevoPlayerId] = useState('');
 
-  // Estados para la asignación manual
   const [mostrarAsignacionManual, setMostrarAsignacionManual] = useState(false);
   const [manualPlayerId, setManualPlayerId] = useState('');
 
@@ -180,7 +180,6 @@ export default function LavarChalecosClient() {
     }
   }
 
-  // GUARDAR ASIGNACIÓN MANUAL
   async function asignarManualmente() {
     if (!fecha) {
       setError('Selecciona la fecha de la pichanga.');
@@ -305,9 +304,67 @@ export default function LavarChalecosClient() {
     }
   }
 
+  // MARCAR EL LAVADO COMO REALIZADO
+  async function marcarComoRealizado() {
+    if (!resultado || resultado.estado !== 'PENDIENTE') {
+      setError('No existe una asignación pendiente para marcar como realizada.');
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Confirmas que ${resultado.pelotero.fullName} ya realizó el lavado de chalecos correspondiente a la pichanga del ${formatearFecha(resultado.fechaPichanga)}?`
+    );
+
+    if (!confirmar) return;
+
+    setMarcandoRealizado(true);
+    setError('');
+    setMensaje('');
+
+    try {
+      const response = await fetch('/api/admin/lavar-chalecos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          asignacionId: resultado.id,
+          accion: 'REALIZADO',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'No se pudo marcar el lavado como realizado.'
+        );
+      }
+
+      setMensaje(
+        `El lavado de chalecos realizado por ${resultado.pelotero.fullName} quedó registrado correctamente.`
+      );
+
+      await cargarDatos(fecha);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Ocurrió un error al marcar el lavado como realizado.'
+      );
+    } finally {
+      setMarcandoRealizado(false);
+    }
+  }
+
   const opcionesReasignacion = asistentes.filter(
     (pelotero) => pelotero.id !== resultado?.pelotero.id
   );
+
+  const bloqueado =
+    loading ||
+    reasignando ||
+    guardandoManual ||
+    marcandoRealizado ||
+    consultando;
 
   return (
     <main
@@ -391,7 +448,7 @@ export default function LavarChalecosClient() {
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            disabled={loading || reasignando || guardandoManual}
+            disabled={bloqueado}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -416,10 +473,7 @@ export default function LavarChalecosClient() {
             type="button"
             onClick={asignarPelotero}
             disabled={
-              loading ||
-              reasignando ||
-              guardandoManual ||
-              consultando ||
+              bloqueado ||
               !fecha ||
               Boolean(resultado) ||
               asistentes.length === 0
@@ -430,14 +484,14 @@ export default function LavarChalecosClient() {
               border: 'none',
               borderRadius: 10,
               background:
-                loading || consultando || resultado || asistentes.length === 0
+                bloqueado || resultado || asistentes.length === 0
                   ? '#94a3b8'
                   : '#047857',
               color: '#ffffff',
               fontSize: 16,
               fontWeight: 700,
               cursor:
-                loading || consultando || resultado || asistentes.length === 0
+                bloqueado || resultado || asistentes.length === 0
                   ? 'not-allowed'
                   : 'pointer',
               display: 'flex',
@@ -478,10 +532,7 @@ export default function LavarChalecosClient() {
               setMensaje('');
             }}
             disabled={
-              loading ||
-              reasignando ||
-              guardandoManual ||
-              consultando ||
+              bloqueado ||
               Boolean(resultado) ||
               asistentes.length === 0
             }
@@ -501,7 +552,7 @@ export default function LavarChalecosClient() {
               fontSize: 16,
               fontWeight: 700,
               cursor:
-                consultando || resultado || asistentes.length === 0
+                bloqueado || resultado || asistentes.length === 0
                   ? 'not-allowed'
                   : 'pointer',
               display: 'flex',
@@ -511,7 +562,9 @@ export default function LavarChalecosClient() {
             }}
           >
             <UserPlus size={20} />
-            {mostrarAsignacionManual ? 'Cancelar asignación' : 'Asignar manualmente'}
+            {mostrarAsignacionManual
+              ? 'Cancelar asignación'
+              : 'Asignar manualmente'}
           </button>
         </div>
 
@@ -798,119 +851,204 @@ export default function LavarChalecosClient() {
             </div>
           </div>
 
-          {/* REASIGNACIÓN */}
+          {/* ACCIONES PARA ASIGNACIÓN PENDIENTE */}
           {resultado.estado === 'PENDIENTE' && (
-            <div
-              style={{
-                marginTop: 22,
-                padding: 18,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 12,
-              }}
-            >
-              <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>
-                Reasignar responsable
-              </h3>
-
-              <p
+            <>
+              {/* MARCAR COMO REALIZADO */}
+              <div
                 style={{
-                  color: '#64748b',
-                  fontSize: 13,
-                  margin: '0 0 14px',
+                  marginTop: 22,
+                  padding: 18,
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 12,
                 }}
               >
-                Selecciona otro pelotero que haya asistido a esta pichanga.
-                La asignación actual quedará registrada como REASIGNADO.
-              </p>
+                <h3
+                  style={{
+                    margin: '0 0 8px',
+                    fontSize: 17,
+                    color: '#166534',
+                  }}
+                >
+                  Confirmar lavado de chalecos
+                </h3>
 
-              {opcionesReasignacion.length > 0 ? (
-                <>
-                  <label
-                    htmlFor="nuevoPelotero"
-                    style={{
-                      display: 'block',
-                      fontWeight: 600,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Nuevo pelotero responsable
-                  </label>
-
-                  <select
-                    id="nuevoPelotero"
-                    value={nuevoPlayerId}
-                    onChange={(e) => setNuevoPlayerId(e.target.value)}
-                    disabled={reasignando}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: 12,
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 9,
-                      background: '#fff',
-                      fontSize: 15,
-                      marginBottom: 14,
-                    }}
-                  >
-                    <option value="">Seleccionar pelotero...</option>
-                    {opcionesReasignacion.map((pelotero) => (
-                      <option key={pelotero.id} value={pelotero.id}>
-                        {pelotero.fullName} - Camiseta {pelotero.jerseyNumber}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={reasignarPelotero}
-                    disabled={reasignando || !nuevoPlayerId}
-                    style={{
-                      width: '100%',
-                      minHeight: 46,
-                      border: 'none',
-                      borderRadius: 9,
-                      background:
-                        reasignando || !nuevoPlayerId ? '#94a3b8' : '#b45309',
-                      color: '#fff',
-                      fontSize: 15,
-                      fontWeight: 700,
-                      cursor:
-                        reasignando || !nuevoPlayerId
-                          ? 'not-allowed'
-                          : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 9,
-                    }}
-                  >
-                    {reasignando ? (
-                      <>
-                        <LoaderCircle size={19} />
-                        Reasignando...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw size={19} />
-                        Reasignar
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <p style={{ color: '#b45309', margin: 0, fontSize: 14 }}>
-                  No hay otro pelotero asistente disponible para reasignar.
+                <p
+                  style={{
+                    color: '#64748b',
+                    fontSize: 13,
+                    margin: '0 0 14px',
+                  }}
+                >
+                  Cuando el responsable haya terminado de lavar los chalecos,
+                  puedes registrar aquí que la tarea fue completada.
                 </p>
-              )}
-            </div>
+
+                <button
+                  type="button"
+                  onClick={marcarComoRealizado}
+                  disabled={marcandoRealizado || reasignando || consultando}
+                  style={{
+                    width: '100%',
+                    minHeight: 48,
+                    border: 'none',
+                    borderRadius: 9,
+                    background: marcandoRealizado ? '#94a3b8' : '#15803d',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: marcandoRealizado ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 9,
+                  }}
+                >
+                  {marcandoRealizado ? (
+                    <>
+                      <LoaderCircle size={20} />
+                      Registrando lavado...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={20} />
+                      Marcar como realizado
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* REASIGNACIÓN */}
+              <div
+                style={{
+                  marginTop: 22,
+                  padding: 18,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 12,
+                }}
+              >
+                <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>
+                  Reasignar responsable
+                </h3>
+
+                <p
+                  style={{
+                    color: '#64748b',
+                    fontSize: 13,
+                    margin: '0 0 14px',
+                  }}
+                >
+                  Selecciona otro pelotero que haya asistido a esta pichanga.
+                  La asignación actual quedará registrada como REASIGNADO.
+                </p>
+
+                {opcionesReasignacion.length > 0 ? (
+                  <>
+                    <label
+                      htmlFor="nuevoPelotero"
+                      style={{
+                        display: 'block',
+                        fontWeight: 600,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Nuevo pelotero responsable
+                    </label>
+
+                    <select
+                      id="nuevoPelotero"
+                      value={nuevoPlayerId}
+                      onChange={(e) => setNuevoPlayerId(e.target.value)}
+                      disabled={reasignando || marcandoRealizado}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: 12,
+                        border: '1px solid #cbd5e1',
+                        borderRadius: 9,
+                        background: '#fff',
+                        fontSize: 15,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <option value="">Seleccionar pelotero...</option>
+                      {opcionesReasignacion.map((pelotero) => (
+                        <option key={pelotero.id} value={pelotero.id}>
+                          {pelotero.fullName} - Camiseta {pelotero.jerseyNumber}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={reasignarPelotero}
+                      disabled={reasignando || marcandoRealizado || !nuevoPlayerId}
+                      style={{
+                        width: '100%',
+                        minHeight: 46,
+                        border: 'none',
+                        borderRadius: 9,
+                        background:
+                          reasignando || marcandoRealizado || !nuevoPlayerId
+                            ? '#94a3b8'
+                            : '#b45309',
+                        color: '#fff',
+                        fontSize: 15,
+                        fontWeight: 700,
+                        cursor:
+                          reasignando || marcandoRealizado || !nuevoPlayerId
+                            ? 'not-allowed'
+                            : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 9,
+                      }}
+                    >
+                      {reasignando ? (
+                        <>
+                          <LoaderCircle size={19} />
+                          Reasignando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw size={19} />
+                          Reasignar
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <p style={{ color: '#b45309', margin: 0, fontSize: 14 }}>
+                    No hay otro pelotero asistente disponible para reasignar.
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {resultado.estado === 'REALIZADO' && (
-            <p style={{ color: '#166534', marginBottom: 0, fontSize: 14 }}>
-              Este lavado ya fue marcado como realizado y no se puede
-              reasignar desde esta pantalla.
-            </p>
+            <div
+              style={{
+                marginTop: 22,
+                padding: 16,
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 12,
+                color: '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <CheckCircle2 size={22} />
+              <p style={{ margin: 0, fontSize: 14 }}>
+                Este lavado ya fue marcado como realizado y no se puede
+                reasignar desde esta pantalla.
+              </p>
+            </div>
           )}
 
           {resultado.estado === 'REASIGNADO' && (
@@ -989,7 +1127,13 @@ export default function LavarChalecosClient() {
                     <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9' }}>
                       {formatearFechaCorta(registro.fechaPichanga)}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9', fontWeight: 600 }}>
+                    <td
+                      style={{
+                        padding: 12,
+                        borderBottom: '1px solid #f1f5f9',
+                        fontWeight: 600,
+                      }}
+                    >
                       {registro.pelotero.fullName}
                     </td>
                     <td style={{ padding: 12, borderBottom: '1px solid #f1f5f9' }}>
