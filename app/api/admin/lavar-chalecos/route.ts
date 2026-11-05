@@ -88,7 +88,7 @@ function respuestaError(error: unknown) {
         status: 404,
       },
       ASIGNACION_NO_PENDIENTE: {
-        mensaje: 'Esta asignación ya no está pendiente y no puede reasignarse.',
+        mensaje: 'Esta asignación ya no está pendiente y no se puede modificar.',
         status: 409,
       },
       MISMO_PELOTERO: {
@@ -288,7 +288,6 @@ export async function POST(req: Request) {
 
     // -------------------------------------------------
     // ASIGNACIÓN MANUAL
-    // Se identifica porque el cliente envía playerId.
     // -------------------------------------------------
 
     if (body.playerId !== undefined) {
@@ -306,7 +305,6 @@ export async function POST(req: Request) {
 
       const asignacion = await prisma.$transaction(
         async (tx) => {
-          // Evitar más de una asignación inicial para la fecha.
           const asignacionExistente = await tx.lavarChaleco.findFirst({
             where: { fechaPichanga },
           });
@@ -315,7 +313,6 @@ export async function POST(req: Request) {
             throw new Error('ASIGNACION_EXISTENTE');
           }
 
-          // Validar que el pelotero haya asistido.
           const asistencia = await tx.asistencia.findFirst({
             where: {
               fechaPichanga,
@@ -328,7 +325,6 @@ export async function POST(req: Request) {
             throw new Error('PELOTERO_NO_ASISTIO');
           }
 
-          // Crear asignación manual con estado PENDIENTE.
           return tx.lavarChaleco.create({
             data: {
               fechaPichanga,
@@ -395,7 +391,6 @@ export async function POST(req: Request) {
 
         const playerIds = asistencias.map((item) => item.playerId);
 
-        // Consultar el historial de los asistentes.
         const historial = await tx.lavarChaleco.findMany({
           where: {
             playerId: { in: playerIds },
@@ -443,7 +438,7 @@ export async function POST(req: Request) {
           candidatos = sinHistorial;
           criterio = 'SIN_HISTORIAL';
         } else {
-          // PRIORIDAD 1: Mayor cantidad de pendientes o reasignados.
+          // PRIORIDAD 2: Mayor cantidad de pendientes o reasignados.
           const maxPendientes = Math.max(
             ...estadisticas.map((jugador) => jugador.pendientes)
           );
@@ -455,7 +450,7 @@ export async function POST(req: Request) {
 
             criterio = 'MAYOR_DEUDA';
           } else {
-            // PRIORIDAD 2: Menor cantidad de lavados realizados.
+            // PRIORIDAD 3: Menor cantidad de lavados realizados.
             const minRealizados = Math.min(
               ...estadisticas.map((jugador) => jugador.realizados)
             );
@@ -468,7 +463,6 @@ export async function POST(req: Request) {
           }
         }
 
-        // Sorteo aleatorio entre los candidatos con mayor prioridad.
         const ganador = candidatos[randomInt(candidatos.length)];
 
         const asignacion = await tx.lavarChaleco.create({
@@ -514,7 +508,7 @@ export async function POST(req: Request) {
 }
 
 // =====================================================
-// PATCH: REASIGNAR RESPONSABLE
+// PATCH: MARCAR REALIZADO O REASIGNAR RESPONSABLE
 // =====================================================
 
 export async function PATCH(req: Request) {
@@ -540,11 +534,89 @@ export async function PATCH(req: Request) {
     }
 
     const asignacionId = body.asignacionId;
-    const nuevoPlayerId = body.playerId;
 
     if (
       typeof asignacionId !== 'string' ||
-      !/^\d+$/.test(asignacionId) ||
+      !/^\d+$/.test(asignacionId)
+    ) {
+      return NextResponse.json(
+        { error: 'El identificador de la asignación no es válido.' },
+        { status: 400 }
+      );
+    }
+
+    // -------------------------------------------------
+    // MARCAR ASIGNACIÓN COMO REALIZADA
+    // El cliente debe enviar:
+    // { "asignacionId": "123", "accion": "REALIZADO" }
+    // -------------------------------------------------
+
+    if (body.accion === 'REALIZADO') {
+      const asignacion = await prisma.$transaction(
+        async (tx) => {
+          const actual = await tx.lavarChaleco.findUnique({
+            where: {
+              id: BigInt(asignacionId),
+            },
+          });
+
+          if (!actual) {
+            throw new Error('ASIGNACION_NO_ENCONTRADA');
+          }
+
+          if (actual.estado !== 'PENDIENTE') {
+            throw new Error('ASIGNACION_NO_PENDIENTE');
+          }
+
+          // Solo se actualiza si todavía continúa PENDIENTE.
+          const actualizacion = await tx.lavarChaleco.updateMany({
+            where: {
+              id: actual.id,
+              estado: 'PENDIENTE',
+            },
+            data: {
+              estado: 'REALIZADO',
+            },
+          });
+
+          if (actualizacion.count !== 1) {
+            throw new Error('ASIGNACION_NO_PENDIENTE');
+          }
+
+          return tx.lavarChaleco.findUnique({
+            where: {
+              id: actual.id,
+            },
+            include: {
+              player: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  jerseyNumber: true,
+                },
+              },
+            },
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        mensaje: 'El lavado fue marcado como realizado correctamente.',
+        asignacion: serializarAsignacion(asignacion),
+      });
+    }
+
+    // -------------------------------------------------
+    // REASIGNAR RESPONSABLE
+    // -------------------------------------------------
+
+    const nuevoPlayerId = body.playerId;
+
+    if (
       typeof nuevoPlayerId !== 'string' ||
       !nuevoPlayerId.trim()
     ) {
@@ -578,14 +650,14 @@ export async function PATCH(req: Request) {
         throw new Error('ASIGNACION_NO_PENDIENTE');
       }
 
-      if (actual.playerId === nuevoPlayerId) {
+      if (actual.playerId === nuevoPlayerId.trim()) {
         throw new Error('MISMO_PELOTERO');
       }
 
       // El nuevo responsable debe haber asistido a esa fecha.
       const asistencia = await tx.asistencia.findFirst({
         where: {
-          playerId: nuevoPlayerId,
+          playerId: nuevoPlayerId.trim(),
           fechaPichanga: actual.fechaPichanga,
           asistio: true,
         },
@@ -614,7 +686,7 @@ export async function PATCH(req: Request) {
       const nuevaAsignacion = await tx.lavarChaleco.create({
         data: {
           fechaPichanga: actual.fechaPichanga,
-          playerId: nuevoPlayerId,
+          playerId: nuevoPlayerId.trim(),
           estado: 'PENDIENTE',
         },
         include: {
